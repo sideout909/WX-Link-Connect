@@ -16,9 +16,9 @@ bash tools/pio.sh run -d firmware
 It targets PanelLan ZX2D80CE02S-V10 / SC05_X, ESP32-S3 N8R2, with
 `espressif32@6.12.0`, Arduino-ESP32 2.0.17, LovyanGFX 1.2.7, ArduinoJson
 6.21.5, PanelLan 0.0.5, RadioLib 7.7.1 and `rtl_433_ESP` 0.6.3. The last
-software build used 244,912 of 327,680 reported RAM bytes (74.7%) and 1,332,453
+software build used 244,912 of 327,680 reported RAM bytes (74.7%) and 1,333,317
 of 3,342,336 application flash bytes (39.9%). The application image is
-1,332,816 bytes; its SHA-256 is recorded in the release manifest and checksums.
+1,333,680 bytes; its SHA-256 is recorded in the release manifest and checksums.
 
 The following host checks passed:
 
