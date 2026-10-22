@@ -4,6 +4,14 @@ script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 project_dir=$(dirname -- "$script_dir")
 test_binary=$(mktemp /tmp/wxlink-connect-test.XXXXXX)
 trap 'rm -f -- "$test_binary" "$test_binary.data.o" "$test_binary.abuf.o"' EXIT
+g++ -std=c++17 -Wall -Wextra -Werror -I"$project_dir/vendor/rtl_433_ESP/src" \
+    "$project_dir/vendor/rtl_433_ESP/test/capture_utils_test.cpp" -o "$test_binary"
+"$test_binary"
+for runtime_test in connect_wifi_scan capture_storage_runtime; do
+  g++ -std=c++17 -Wall -Wextra -Werror -I"$project_dir/firmware/tests/fakes" \
+      -I"$project_dir/firmware/include" "$project_dir/firmware/tests/${runtime_test}_test.cpp" -o "$test_binary"
+  "$test_binary"
+done
 g++ -std=c++17 -Wall -Wextra -Werror \
     -I"$project_dir/firmware/include" \
     "$project_dir/firmware/tests/capture_session_test.cpp" -o "$test_binary"

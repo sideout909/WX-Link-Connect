@@ -313,6 +313,8 @@ enum class rtl_433_ESPError : uint8_t {
 
 struct rtl_433_ESPStatus {
   unsigned int capturedSignals;
+  unsigned int ignoredSignals;
+  bool rssiCalibrated;
   unsigned int decodedSignals;
   unsigned int decodedMessages;
   unsigned int zeroDecodedSignals;

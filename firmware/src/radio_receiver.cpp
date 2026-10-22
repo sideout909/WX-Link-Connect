@@ -95,6 +95,7 @@ Diagnostics diagnostics(){
   const auto s=receiver.statusSnapshot();d.enabled=s.receiverEnabled;
   d.current_rssi=s.currentRssi;d.average_rssi=s.averageRssi;d.threshold=s.rssiThreshold;
   d.margin=rtl_433_ESP::rssiThresholdDelta;
+  d.captured_signals=s.capturedSignals;d.ignored_signals=s.ignoredSignals;d.calibrated=s.rssiCalibrated;
   d.decoded_signals=s.decodedSignals;d.decoded_messages=s.decodedMessages;
   d.zero_decodes=s.zeroDecodedSignals;d.capture_drops=s.droppedCaptureBuffers;
   d.decoder_drops=s.droppedDecoderQueue;return d;

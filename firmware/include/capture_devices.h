@@ -10,7 +10,7 @@ constexpr size_t kCandidateCapacity = 32;
 constexpr size_t kIdentityFieldCapacity = 40;
 
 struct CandidateIdentity {
-  std::array<char, kIdentityFieldCapacity> protocol{};
+  std::array<char, 128> protocol{};
   std::array<char, kIdentityFieldCapacity> model{};
   std::array<char, kIdentityFieldCapacity> id{};
   std::array<char, kIdentityFieldCapacity> channel{};

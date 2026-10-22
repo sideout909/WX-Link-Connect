@@ -28,8 +28,13 @@ bool initialized = false;
 bool mounted = false, session_active = false, write_failed = false;
 String message = "Capture storage not initialized";
 
+String sessionDirectory(const char* id) { return String(kDirectory) + "/" + id; }
 String pathFor(const char* id, bool pulses) {
-  return String(kDirectory) + "/" + id + (pulses ? ".pulses.wxc" : ".decoded.wxc");
+  // Read existing flat-layout sessions without rewriting them. New sessions use
+  // <=32-character components, including images made by pinned mklittlefs.
+  const String legacy = String(kDirectory) + "/" + id + (pulses ? ".pulses.wxc" : ".decoded.wxc");
+  if (LittleFS.exists(legacy)) return legacy;
+  return sessionDirectory(id) + (pulses ? "/pulses.wxc" : "/decoded.wxc");
 }
 
 bool validId(const char* id) {
@@ -99,38 +104,51 @@ uint32_t scanFile(const String& path, bool pulses, bool& end_seen,
   return static_cast<uint32_t>(offset);
 }
 
+void recoverStream(const char* id, bool pulses) {
+  int index = findSession(id);
+  if (index < 0) {
+    index = freeSession();
+    if (index < 0) return;
+    std::memcpy(session_list[index].id.data(), id, kSessionIdChars + 1);
+    session_list[index].occupied = true;
+  }
+  SessionInfo& info = session_list[index];
+  const String path = pathFor(id, pulses);
+  if (!LittleFS.exists(path)) return;
+  bool end_seen = false;
+  uint32_t records = 0;
+  const uint32_t valid_bytes = scanFile(path, pulses, end_seen, info.corrupt,
+                                      info.incomplete_tail, records);
+  if (pulses) {
+    info.pulse_bytes = info.pulse_valid_bytes = valid_bytes;
+    info.pulse_records = records;
+  } else {
+    info.decoded_bytes = info.decoded_valid_bytes = valid_bytes;
+    info.decoded_records = records;
+    info.interrupted = !end_seen;
+  }
+}
 bool recover() {
   session_list = {};
   File directory = LittleFS.open(kDirectory);
   if (!directory || !directory.isDirectory()) { message = "Capture directory unavailable"; return false; }
   while (File entry = directory.openNextFile()) {
-    if (entry.isDirectory()) { entry.close(); continue; }
+    const bool is_directory = entry.isDirectory();
     String name = entry.name();
-    const bool pulses = name.endsWith(".pulses.wxc");
-    if (!pulses && !name.endsWith(".decoded.wxc")) { entry.close(); continue; }
-    int slash = name.lastIndexOf('/');
-    const String base = slash >= 0 ? name.substring(slash + 1) : name;
-    if (base.length() < kSessionIdChars + 12) { entry.close(); continue; }
-    const String id = base.substring(0, kSessionIdChars);
-    if (!validId(id.c_str())) { entry.close(); continue; }
-    int index = findSession(id.c_str());
-    if (index < 0) {
-      index = freeSession();
-      if (index < 0) { entry.close(); continue; }
-      SessionInfo& created = session_list[index];
-      std::memcpy(created.id.data(), id.c_str(), kSessionIdChars + 1);
-      created.occupied = true;
-    }
     entry.close();
-    SessionInfo& info = session_list[index];
-    bool end_seen = false;
-    uint32_t records = 0;
-    const String full_path = pathFor(info.id.data(), pulses);
-    const uint32_t valid_bytes = scanFile(full_path, pulses, end_seen, info.corrupt,
-                                          info.incomplete_tail, records);
-    if (pulses) { info.pulse_valid_bytes = valid_bytes; info.pulse_records = records; }
-    else { info.decoded_valid_bytes = valid_bytes; info.decoded_records = records; }
-    if (!pulses) info.interrupted = !end_seen;
+    const int slash = name.lastIndexOf('/');
+    const String base = slash >= 0 ? name.substring(slash + 1) : name;
+    if (is_directory) {
+      if (!validId(base.c_str())) continue;
+      recoverStream(base.c_str(), false);
+      recoverStream(base.c_str(), true);
+      continue;
+    }
+    const bool pulses = base.endsWith(".pulses.wxc");
+    const size_t suffix = pulses ? 11 : 12;
+    if ((!pulses && !base.endsWith(".decoded.wxc")) || base.length() != kSessionIdChars + suffix) continue;
+    const String id = base.substring(0, kSessionIdChars);
+    if (validId(id.c_str())) recoverStream(id.c_str(), pulses);
   }
   directory.close();
   message = "Capture storage ready; existing sessions preserved";
@@ -207,6 +225,10 @@ bool beginSession(const char* session_id) {
     message = "Capture refused: less than 512 KiB reserve remains";
     return false;
   }
+  const String folder = sessionDirectory(session_id);
+  if (!LittleFS.exists(folder) && !LittleFS.mkdir(folder)) {
+    message = "Capture session directory could not be created"; return false;
+  }
   const String decoded_path = pathFor(session_id, false), pulse_path = pathFor(session_id, true);
   if (LittleFS.exists(decoded_path) || LittleFS.exists(pulse_path)) {
     message = "Session files already exist; refusing overwrite";
@@ -219,6 +241,7 @@ bool beginSession(const char* session_id) {
   if (!files[0] || !files[1]) {
     files[0].close(); files[1].close();
     LittleFS.remove(decoded_path); LittleFS.remove(pulse_path);
+    LittleFS.rmdir(folder);
     message = "Capture session files could not be created";
     return false;
   }
@@ -296,6 +319,10 @@ bool deleteSession(const char* session_id) {
     if (!recover()) initialized = false;
     message = "Session deletion incomplete; remaining evidence was retained";
     return false;
+  }
+  const String folder = sessionDirectory(session_id);
+  if (LittleFS.exists(folder) && !LittleFS.rmdir(folder)) {
+    message = "Session data deleted; directory cleanup failed"; return false;
   }
   session_list[index] = SessionInfo{};
   message = ok ? "Session deleted and retained storage slot released"

@@ -30,7 +30,7 @@ int main() {
   assert(!table.observe("overflow", "unknown", "extra", nullptr, 900));
   assert(table.overflow() == 1);
   const std::string too_long(kIdentityFieldCapacity, 'x');
-  assert(!table.observe(too_long.c_str(), "m", "id", nullptr, 901));
+  assert(!table.observe("p", too_long.c_str(), "id", nullptr, 901));
   assert(table.oversize() == 1);
   std::puts("Candidate table checks passed: identities, unknown IDs, repeats, bounds and overflow.");
 }

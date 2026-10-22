@@ -14,9 +14,9 @@ bool ready();
 bool pop(char (&output)[kDecodedBufferBytes], size_t& length, bool& truncated);
 uint32_t dropped();
 struct Diagnostics {
-  bool ready=false,enabled=false,init_attempted=false;
+  bool ready=false,enabled=false,init_attempted=false,calibrated=false;
   int current_rssi=0,average_rssi=0,threshold=0,margin=0;
-  uint32_t decoded_signals=0,decoded_messages=0,zero_decodes=0;
+  uint32_t captured_signals=0,ignored_signals=0,decoded_signals=0,decoded_messages=0,zero_decodes=0;
   uint32_t capture_drops=0,decoder_drops=0;
 };
 Diagnostics diagnostics();

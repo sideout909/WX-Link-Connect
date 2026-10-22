@@ -1,5 +1,6 @@
 #include "services.h"
 #include "setup_credentials.h"
+#include "connect_wifi_scan.h"
 
 #include <ArduinoJson.h>
 #include <Preferences.h>
@@ -25,18 +26,18 @@ bool setup_dns_ready = false;
 uint32_t last_mdns_attempt = 0;
 String mdns_station_address;
 WifiScan wifi_scan;
+wxconnect::WifiScanDriver wifi_scan_driver;
+const char* wifi_scan_start_error = "none";
 bool scan_started = false;
 uint32_t scan_started_at = 0;
 
 void pollWifiScan() {
   if (std::strcmp(wifi_scan.state, "running")) return;
-  const int result = WiFi.scanComplete();
-  if (result == WIFI_SCAN_RUNNING) {
-    if (uint32_t(millis() - scan_started_at) < 15000) return;
-    esp_wifi_scan_stop();
-    wifi_scan.state = "timeout";
-  } else if (result < 0) {
-    wifi_scan.state = "failed";
+  const int result = wifi_scan_driver.poll(millis());
+  if (result == wxconnect::WifiScanDriver::kRunning) return;
+  if (result < 0) {
+    wifi_scan.state = result == wxconnect::WifiScanDriver::kTimeout ? "timeout" : "failed";
+    wifi_scan.driver_error = wifi_scan_driver.error();
   } else {
     for (int i = 0; i < result && i < 256; ++i) {
       String ssid = WiFi.SSID(i);
@@ -63,7 +64,7 @@ void pollWifiScan() {
           std::swap(wifi_scan.networks[i], wifi_scan.networks[j]);
     wifi_scan.state = "complete";
   }
-  WiFi.scanDelete();
+  wifi_scan_driver.release(result < 0);
 }
 
 void startLocalName() {
@@ -180,15 +181,21 @@ String setupWifiKey() { return config.setup_wifi_key; }
 String adminPassword() { return config.setup_key; }
 String setupSsid() { return current.ap_name; }
 bool startWifiScan() {
-  if (!std::strcmp(wifi_scan.state, "running") ||
-      (scan_started && uint32_t(millis() - scan_started_at) < 10000)) return false;
-  WiFi.scanDelete();
+  if (!std::strcmp(wifi_scan.state, "running")) {
+    wifi_scan_start_error = "wifi_scan_already_running"; return false;
+  }
+  if (scan_started && uint32_t(millis() - scan_started_at) < 10000) {
+    wifi_scan_start_error = "wifi_scan_retry_after_10_seconds"; return false;
+  }
   wifi_scan = WifiScan{};
   scan_started = true; scan_started_at = millis();
-  const int result = WiFi.scanNetworks(true, false, false, 120);
-  wifi_scan.state = result == WIFI_SCAN_FAILED ? "failed" : "running";
-  return result != WIFI_SCAN_FAILED;
+  const bool started = wifi_scan_driver.start(scan_started_at);
+  wifi_scan.driver_error = wifi_scan_driver.error();
+  wifi_scan.state = started ? "running" : "failed";
+  wifi_scan_start_error = started ? "none" : esp_err_to_name(wifi_scan.driver_error);
+  return started;
 }
+const char* wifiScanStartError() { return wifi_scan_start_error; }
 const WifiScan& wifiScan() { return wifi_scan; }
 bool saveConnectSettings(const Settings& settings, const String& new_admin, bool reconnect) {
   const bool network_changed = config.ssid != settings.ssid || config.wifi_password != settings.wifi_password;

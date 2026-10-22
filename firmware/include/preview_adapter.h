@@ -12,7 +12,8 @@ constexpr size_t kTextCapacity = 40;
 enum class RainUnit : uint8_t { None, Inch, Millimetre };
 
 struct Identity {
-  std::array<char, kTextCapacity> protocol{}, model{}, id{}, channel{};
+  std::array<char, 128> protocol{};
+  std::array<char, kTextCapacity> model{}, id{}, channel{};
   bool has_protocol = false, has_model = false, has_id = false, has_channel = false;
 };
 
@@ -103,8 +104,9 @@ class Adapter {
 
   static Identity readIdentity(JsonVariantConst native) {
     Identity identity;
+    char protocol[128];
+    if (readText(native["protocol"], protocol, sizeof(protocol))) copy(protocol, identity.protocol, identity.has_protocol);
     char value[kTextCapacity];
-    if (readText(native["protocol"], value, sizeof(value))) copy(value, identity.protocol, identity.has_protocol);
     if (readText(native["model"], value, sizeof(value))) copy(value, identity.model, identity.has_model);
     if (readText(native["id"], value, sizeof(value))) copy(value, identity.id, identity.has_id);
     if (readText(native["channel"], value, sizeof(value))) copy(value, identity.channel, identity.has_channel);

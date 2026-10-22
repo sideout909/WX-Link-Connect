@@ -102,11 +102,13 @@ String setupSsid();
 String adminPassword();
 struct WifiNetwork { String ssid; int32_t rssi = 0; bool secured = false; };
 struct WifiScan {
+  int32_t driver_error = 0;
   const char* state = "idle";
   std::array<WifiNetwork, 16> networks;
   size_t count = 0;
 };
 bool startWifiScan();
+const char* wifiScanStartError();
 const WifiScan& wifiScan();
 bool saveConnectSettings(const Settings& settings, const String& new_admin = "",
                          bool reconnect = true);

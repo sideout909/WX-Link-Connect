@@ -1,6 +1,54 @@
 # WXLink Connect software status
 
-## Local 0.1.2 test candidate — clean-installed, not published
+## Local 0.1.3-dev repair candidate — flashed for owner testing
+
+Wi-Fi scanning now uses a zero-initialized IDF scan configuration and a 15-second
+application deadline, with bounded event notification and explicit cleanup.
+The connected device completed a scan with five networks (no names logged).
+Setup avoids automatic scans while capture blocks them; driver errors, running
+scans and cooldown have distinct diagnostics. USB wifi_scan_start/status expose
+only scan state, result count and error, and cannot scan during capture.
+
+Capture files now use /connect/captures/<32-hex-session>/decoded.wxc and
+pulses.wxc. Pinned mklittlefs images have a 32-character component limit: host
+probes accepted lengths 31/32 and rejected 33, reproducing the old 43/44-character
+filename failure. Existing flat sessions remain readable; neither filesystem nor
+NVS was erased. Runtime tests exercise actual capture_storage.cpp with filesystem
+operations, that filename limit, both streams, recovery/read/delete, rejected
+writes and legacy pulse-only sessions. Device auto capture starts successfully.
+
+OOK processing now retains valid edges throughout an active signal even when
+the slower cached RSSI sample is low. Early RSSI dips also receive dropout grace;
+the old >30ms prerequisite prematurely ended early frames. Frequency, wiring,
+OOK profile, enabled decoder set, AGC, bandwidth and RSSI margin are unchanged.
+The final flashed build delivered 16 live packets in 91.7 seconds, versus zero
+in the earlier bounded baseline. No live-view rejection or capture/decoder/app
+queue drops were observed. Automatic preview was still unselected: Atlas/Home
+acceptance remains incomplete, and these counts alone do not prove Atlas support.
+Library captured_signals/ignored_signals diagnostics reset at the library's
+100-signal interval; decoded/live counters are the relevant boot totals.
+
+Checks: bash tools/test-firmware.sh, browser checks via verify_connect_page.py,
+python3 tools/check-connect-isolation.py, git diff --check and pinned PlatformIO
+build passed. New host tests cover scan completion beyond the old 2.4-second
+deadline, initialized config, errors, cleanup, late events and timer rollover,
+and OOK edge/dropout policy. A hardcoded 0.1.2 test expectation was corrected to
+use firmware_version::display after the version bump exposed it.
+RAM 170792/327680; flash 1379889/3342336. Final binary SHA256:
+91c33c830b891b3fd9070eb3da236defd3672e5b09025fa125736e39a8a08840.
+Owner-authorized staged uploads completed with flash verification; no chip erase,
+settings restore, external submission, GitHub push or release occurred. The
+previous private original-device backup remains untouched. Serial port closed
+after each bounded check. Logs and allowlisted RF summary are in ignored
+artifacts/wifi-rf-investigation/. No credentials or native station packets were
+printed or copied into source/public documentation. M12 remains partial.
+
+Remaining: confirm decoded models/Atlas preview, sustained RF reception and
+recording/download/reboot behavior on hardware, then the owner's Connect-to-main
+OTA test and optional full-backup restoration. Cosmetic requests are recorded
+in docs/SMALL_UI_TODO.md only.
+
+## Previous local 0.1.2 test candidate — clean-installed, not published
 
 After initially postponing flashing, the owner authorized two verified private
 full-flash backups, a chip erase and clean 0.1.2 provisioning. Published 0.1.1
@@ -132,3 +180,34 @@ flows passed synthetic tests; full end-to-end phone acceptance remains pending.
 The local idea list in [WISHLIST.md](WISHLIST.md) includes a possible future
 owner-operated submission relay; there is no submission service or credential
 on the device in this release.
+
+Additional Atlas preview cause: the live library appends a 95-character public
+decoder name in protocol. Both CandidateTable and preview identities previously
+accepted only 39 characters and rejected the entire identity. Protocol identity
+storage now permits 127 characters, separately from the other bounded fields.
+A synthetic regression uses the exact vendored public decoder name and verifies
+automatic candidate selection plus temperature ingestion. Recording remains
+unchanged. Native stored evidence was inspected in memory only: 26 recovered
+packets identified as Acurite-Atlas; only model counts and field names were
+printed, never device IDs, measurements, credentials or full packets. Six retained
+sessions were present during that check; none were deleted.
+
+Final device verification after the protocol-capacity fix: 0.1.3-dev delivered
+three live decoded packets and automatically selected preview by uptime
+11,987 ms, with zero live-view rejection and zero capture/decoder/app queue
+drops. Hardware LCD values were not visually checked. The earlier unselected
+preview observation above applies to the intermediate build and is superseded
+by this result. Summary: artifacts/wifi-rf-investigation/atlas-final-summary.json.
+
+Repeated diagnostic resets filled all eight retained-session slots. Removed
+only four positively identified empty diagnostic sessions: each contained just
+one 0.1.3-dev session-header record and zero pulse records, with no packet data.
+All sessions containing evidence were preserved. Final bounded status confirmed
+active recording, storage ready and five retained sessions; USB closed afterward.
+The original private full-flash backup remains unchanged.
+
+Resume: software fixes and owner-authorized test flashing finished; do not
+implement the two cosmetic requests yet (docs/SMALL_UI_TODO.md). Device runs
+0.1.3-dev with Wi-Fi scan, capture filename, OOK processing and long protocol
+identity fixes. Sustained/visual RF acceptance and Connect-to-main OTA/restore
+are still pending; M12 remains partial. No publication/push performed.

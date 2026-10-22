@@ -32,7 +32,7 @@ int main() {
   assert(session_json.find("\"profile_revision\":1") != std::string::npos);
   assert(session_json.find("\"radio_readback_verified\":false") != std::string::npos);
   assert(session_json.find("\"requested_rssi_margin_db\":9") != std::string::npos);
-  assert(session_json.find("\"firmware\":\"WXLink Connect 0.1.2\"") != std::string::npos);
+  assert(session_json.find(std::string("\"firmware\":\"")+firmware_version::display+"\"") != std::string::npos);
   assert(session_json.find("\"board\":\"panellan_sc05_x\"") != std::string::npos);
 
   Record packet;

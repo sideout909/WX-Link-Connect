@@ -12,6 +12,17 @@ static const char* packets[] = {
  R"({"model":"Acurite-Atlas","id":101,"channel":"A","sequence_num":2,"message_type":7,"wind_avg_mi_h":4.0,"uv":2,"lux":12340,"raw_msg":"synthetic"})"
 };
 int main() {
+  { // The live library appends its full decoder name, not just a numeric protocol.
+    constexpr char name[]="Acurite 592TXR Temp/Humidity, 592TX Temp, 5n1 Weather Station, 6045 Lightning, 899 Rain, 3N1, Atlas";
+    const std::string packet=std::string("{\"protocol\":\"")+name+"\",\"model\":\"Acurite-Atlas\",\"id\":101,\"channel\":\"A\",\"temperature_C\":20}";
+    capture::CandidateTable table;preview::Adapter actual;
+    for(unsigned i=0;i<3;++i) assert(table.observe(name,"Acurite-Atlas","101","A",i));
+    const auto* choice=preview::automaticCandidate(table,actual);assert(choice);
+    assert(actual.select(choice->protocol.data(),choice->model.data(),choice->id.data(),choice->channel.data()));
+    assert(actual.ingest(packet.c_str(),packet.size(),4));
+    assert(actual.model().temperature_c.valid && actual.model().temperature_c.value==20);
+  }
+
   // Reproduce 0.1.1: zero-copy parsing silently destroys the borrowed JSON text.
   char broken[2048];std::strcpy(broken,packets[0]);
   StaticJsonDocument<2048> old_document;

@@ -563,6 +563,9 @@ void rfStatus(){
   d["radio_ready"]=r.ready;d["receiver_enabled"]=r.enabled;d["source"]=replay?"usb_replay":"radio";
   d["current_rssi_dbm"]=r.current_rssi;d["average_rssi_dbm"]=r.average_rssi;d["threshold_dbm"]=r.threshold;
   d["capture_margin_db"]=r.margin;
+  d["captured_signals"]=r.captured_signals;d["ignored_signals"]=r.ignored_signals;
+  d["rssi_calibrated"]=r.calibrated;d["live_decoded_packets"]=live_packets.received;
+  d["live_view_rejected"]=live_packets.rejected;d["preview_selected"]=preview_adapter.model().selected;
   d["decoded_signals"]=r.decoded_signals;d["decoded_messages"]=r.decoded_messages;d["zero_decodes"]=r.zero_decodes;
   d["capture_drops"]=r.capture_drops;d["decoder_drops"]=r.decoder_drops;d["app_queue_drops"]=radio_receiver::dropped();
   d["sensor_status"]=sensor_health::label(sensorState());d["accepted"]=store->accepted;d["repeats"]=store->duplicates;d["rejected"]=store->rejected;
@@ -846,6 +849,18 @@ void command(const char* input) {
     preview_explicit=false;refreshAutomaticPreview();dirty=true;
     Serial.printf("{\"event\":\"preview_auto\",\"request_id\":%u,\"ok\":true}\n",request_id);
   }
+  else if(!strcmp(op,"wifi_scan_start") || !strcmp(op,"wifi_scan_status")){
+    const bool start=!strcmp(op,"wifi_scan_start");
+    const bool blocked=capture_session.active()||wxconnect::capture::storage::state().active||
+        radio_receiver::rawWindowActive()||wxconnect::connect_migration::blocksCapture();
+    const bool ok=!start||(!blocked&&services::startWifiScan());
+    const auto& scan=services::wifiScan();
+    StaticJsonDocument<384> reply;
+    reply["event"]="wifi_scan_status";reply["request_id"]=request_id;reply["ok"]=ok;
+    reply["state"]=scan.state;reply["network_count"]=scan.count;reply["driver_error"]=scan.driver_error;
+    reply["error"]=!ok?(blocked?"stop_capture_before_wifi_scan":services::wifiScanStartError()):"none";
+    serializeJson(reply,Serial);Serial.println();
+  }
   else if(!strcmp(op,"rf_status")){if(rf_stream_until&&int32_t(rf_stream_until-millis())>0)rf_stream_until=millis()+15000;rfStatus();}
   else if(!strcmp(op,"rf_monitor")){
     const bool enabled=doc["enabled"]|false;rf_stream_until=enabled?millis()+15000:0;
@@ -1074,11 +1089,12 @@ void wifiScanRoute() {
         radio_receiver::rawWindowActive() || wxconnect::connect_migration::blocksCapture()) {
       sendApiError(409, "stop_capture_before_wifi_scan"); return;
     }
-    if (!services::startWifiScan()) { sendApiError(409,"wifi_scan_busy_or_retry_later"); return; }
+    if (!services::startWifiScan()) { sendApiError(409,services::wifiScanStartError()); return; }
   }
   StaticJsonDocument<4096> document;
   const auto& scan = services::wifiScan();
   document["state"] = scan.state;
+  document["driver_error"] = scan.driver_error;
   JsonArray networks = document.createNestedArray("networks");
   for (size_t i = 0; i < scan.count; ++i) {
     JsonObject row = networks.createNestedObject();

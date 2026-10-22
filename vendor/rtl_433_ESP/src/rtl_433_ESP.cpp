@@ -777,7 +777,7 @@ void ICACHE_RAM_ATTR rtl_433_ESP::interruptHandler() {
   /* We first do some filtering (same as pilight BPF) */
 
 #ifdef RF_CC1101
-  if (duration > MINIMUM_PULSE_LENGTH && currentRssi > rssiThreshold)
+  if (rtl_433_capture::acceptPulse(duration, MINIMUM_PULSE_LENGTH))
 #else
   if (duration > MINIMUM_PULSE_LENGTH) // SX127X RSSI Value drops for a 0 value,
   // and the OOK floor compensates for this
@@ -862,7 +862,7 @@ void ICACHE_RAM_ATTR rtl_433_ESP::interruptHandler2() {
   volatile int* rssi = pulseTrain.rssi;
 #  endif
 
-  if (duration > MINIMUM_PULSE_LENGTH && currentRssi2 > rssiThreshold2) {
+  if (rtl_433_capture::acceptPulse(duration, MINIMUM_PULSE_LENGTH)) {
 #  ifdef SIGNAL_RSSI
     rssi[_nrpulses2] = currentRssi2;
 #  endif
@@ -1014,6 +1014,12 @@ rtl_433_ESPStatus rtl_433_ESP::statusSnapshot() {
   rtl_433_ESPStatus snapshot{};
   portENTER_CRITICAL(&captureMux);
   snapshot.capturedSignals = totalSignals;
+  snapshot.ignoredSignals = ignoredSignals;
+#ifdef AUTORSSITHRESHOLD
+  snapshot.rssiCalibrated = _rssiCalibrated;
+#else
+  snapshot.rssiCalibrated = true;
+#endif
   snapshot.decodedSignals = decoderSignals;
   snapshot.decodedMessages = decodedMessages;
   snapshot.zeroDecodedSignals = zeroDecodedSignals;
@@ -1325,8 +1331,9 @@ void rtl_433_ESP::rtl_433_ReceiverTask(void* pvParameters) {
       else if (micros() - signalEnd < MINIMUM_SIGNAL_LENGTH)
 #else
       // If we received a signal but had a minor drop in strength keep the
-      // receiver running for an additional 40,000
-      else if (micros() - signalEnd < MINIMUM_SIGNAL_LENGTH && micros() - signalStart > 30000)
+      // receiver running for an additional 40,000 from the start of capture too.
+      // The old 30ms prerequisite fragmented early OOK RSSI dropouts.
+      else if (rtl_433_capture::holdSignal(receiveMode, micros(), signalEnd, MINIMUM_SIGNAL_LENGTH))
       // else if (micros() - signalEnd < PD_MAX_GAP_MS)
 #endif
       {
