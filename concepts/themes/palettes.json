@@ -1,0 +1,57 @@
+{
+  "matrix": {
+    "background": "#030805",
+    "card": "#0b180f",
+    "text": "#c8ffd0",
+    "muted": "#6bd17c",
+    "accent": "#65ff8a",
+    "divider": "#153d20",
+    "connected": "#83ff9d",
+    "alert_card": "#0a2112",
+    "alert_border": "#245c31"
+  },
+  "amber": {
+    "background": "#130d07",
+    "card": "#261b0f",
+    "text": "#fff0d2",
+    "muted": "#d7b68a",
+    "accent": "#ffbc5c",
+    "divider": "#574027",
+    "connected": "#9ce2b2",
+    "alert_card": "#15271b",
+    "alert_border": "#355b40"
+  },
+  "ice-blue": {
+    "background": "#08131e",
+    "card": "#142737",
+    "text": "#eff8ff",
+    "muted": "#a9c5dd",
+    "accent": "#79baff",
+    "divider": "#2d485f",
+    "connected": "#8bdfc1",
+    "alert_card": "#102b2a",
+    "alert_border": "#2e5650"
+  },
+  "violet": {
+    "background": "#120d1c",
+    "card": "#24192f",
+    "text": "#f7f0ff",
+    "muted": "#bfaed0",
+    "accent": "#c29aff",
+    "divider": "#493455",
+    "connected": "#96e2bd",
+    "alert_card": "#142923",
+    "alert_border": "#355947"
+  },
+  "paper": {
+    "background": "#eef1f4",
+    "card": "#ffffff",
+    "text": "#172536",
+    "muted": "#526478",
+    "accent": "#145aa0",
+    "divider": "#bdc9d4",
+    "connected": "#226d49",
+    "alert_card": "#e0eee5",
+    "alert_border": "#a5c8b2"
+  }
+}

@@ -1,0 +1,67 @@
+__pycache__/
+*.pyc
+captures/
+.venv/
+firmware/.pio/
+firmware/.cache/
+dist/
+
+# Local credentials and private exports
+.env
+.env.*
+.ssh/
+*.key
+*.p12
+*.pfx
+
+# Local capture sessions and build evidence
+data/
+logs/
+*.partial
+*.capture.zip
+
+# Local model and handoff instructions are not product repository files
+/AGENTS.md
+/BASELINE_AGENTS.md
+/BASELINE_README.md
+/LOCAL_MODEL_PROMPT.md
+
+# Locally generated candidates and release staging
+/artifacts/
+
+# Local handoff material and inherited weather-project documentation
+/handoff/
+/firmware/*.md
+/docs/00_EXISTING_PROJECT_TODOS.md
+/assets/screenshots/
+/CAPTURE.md
+/DECODER_SUPPORT.md
+/DESIGN.md
+/HOME_SCREEN.md
+/PARTS.md
+/SCREENS.md
+/STATION_SUPPORT.md
+/WEATHER_SHARING.md
+/tools/70-cyd-weather-link.rules
+/tools/atlas_capture.py
+/tools/atlas_capture.service
+/tools/monitor-rf.sh
+/tools/monitor_rf.py
+/tools/test_atlas_capture.py
+/tools/test_monitor_rf.py
+/firmware/src/network_jobs.cpp
+/firmware/src/firmware_updates.cpp
+/PROGRESS.md
+/docs/05_SOURCE_MAP.md
+/tools/atlas-capture.service
+/tools/inventory-decoders.py
+/tools/setup-esp32-access.sh
+/tools/check-handoff.py
+/tools/package-firmware-release.py
+/tools/verify-setup-page.py
+/tools/verify_setup_page.py
+/tools/verify_location_setup.py
+/tools/verify_discovery_setup.py
+/firmware/include/firmware_updates.h
+/firmware/include/update_policy.h
+/firmware/tests/update_policy_test.cpp

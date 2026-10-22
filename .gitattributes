@@ -1,0 +1,4 @@
+# Keep pinned vendor bytes unchanged (the asset packer verifies their hashes).
+assets/web/leaflet/* -text whitespace=-trailing-space
+assets/fonts/LICENSE-DejaVu.txt -text whitespace=-trailing-space
+third_party/licenses/* -text whitespace=-trailing-space

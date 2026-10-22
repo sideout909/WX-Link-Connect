@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WXLink Connect capture envelope v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "event",
+    "session_id",
+    "seq",
+    "uptime_ms",
+    "utc_ms",
+    "time_valid",
+    "source",
+    "profile_id"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "event": {
+      "enum": [
+        "session",
+        "packet",
+        "pulse",
+        "status",
+        "gap",
+        "end"
+      ]
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "uptime_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "utc_ms": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "time_valid": {
+      "type": "boolean"
+    },
+    "source": {
+      "enum": [
+        "live",
+        "synthetic",
+        "replay"
+      ]
+    },
+    "profile_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "native_json": {
+      "type": "string"
+    },
+    "pulse_us": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "gap_us": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "original_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "captured_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "duration_us": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "packet_seq": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "packet"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "native_json"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "pulse"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "pulse_us",
+          "gap_us",
+          "original_count",
+          "captured_count",
+          "truncated",
+          "duration_us",
+          "packet_seq"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "time_valid": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "utc_ms": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "utc_ms": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": true
+}
