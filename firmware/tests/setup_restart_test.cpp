@@ -1,9 +1,16 @@
 #include "setup_restart.h"
+#include "capture_start_policy.h"
 #include "connect_live.h"
 #include <cstring>
 #include <cassert>
 #include <limits>
 int main() {
+  using wxconnect::capture::storageStartBlocker;
+  assert(storageStartBlocker(false,false,0,8,1000000,528384));
+  assert(storageStartBlocker(true,true,0,8,1000000,528384));
+  assert(storageStartBlocker(true,false,8,8,1000000,528384));
+  assert(storageStartBlocker(true,false,0,8,528383,528384));
+  assert(!storageStartBlocker(true,false,7,8,528384,528384));
   wxconnect::LivePacketView view;
   char packet[]="{\"unknown\":1.2300,\"name\":\"<img src=x>\"}";
   assert(view.observe(packet,std::strlen(packet),false,12));

@@ -34,6 +34,9 @@ struct Model {
 
 class Adapter {
  public:
+  static bool supportsModel(const char* model) {
+    return model && std::strcmp(model, "Acurite-Atlas") == 0;
+  }
   bool select(const char* protocol, const char* model, const char* id, const char* channel) {
     Identity requested;
     if (!copy(protocol, requested.protocol, requested.has_protocol) ||
@@ -44,7 +47,7 @@ class Adapter {
     model_ = Model{};
     model_.identity = requested;
     model_.selected = true;
-    model_.adapter_available = std::strcmp(requested.model.data(), "Acurite-Atlas") == 0;
+    model_.adapter_available = supportsModel(requested.model.data());
     return true;
   }
 
@@ -61,11 +64,11 @@ class Adapter {
     if (model_.packets != UINT32_MAX) ++model_.packets;
     updateTemperature(document.as<JsonVariantConst>(), uptime_ms);
     updateWind(document.as<JsonVariantConst>(), uptime_ms);
-    updateSingle(document["wind_dir_deg"], model_.wind_direction_deg, uptime_ms, 0, 360);
+    updateSingle(document["wind_dir_deg"], model_.wind_direction_deg, uptime_ms, 0, 360, true);
     updateSingle(document["humidity"], model_.humidity_pct, uptime_ms, 0, 100, true);
     updateRain(document.as<JsonVariantConst>(), uptime_ms);
     updateSingle(document["lux"], model_.light_lux, uptime_ms, 0, 1.0e9);
-    updateSingle(document["uv"].isNull() ? document["uvi"] : document["uv"],
+    updateSingle(document["uv"].isUnbound() ? document["uvi"] : document["uv"],
                  model_.uv_index, uptime_ms, 0, 100);
     return true;
   }
@@ -147,7 +150,7 @@ class Adapter {
       assign(model_.temperature_c, (f - 32.0) * (5.0 / 9.0), now);
     } else if (has_c) {
       assign(model_.temperature_c, c, now);
-    } else if (!native["temperature_C"].isNull() || !native["temperature_F"].isNull()) {
+    } else if (!native["temperature_C"].isUnbound() || !native["temperature_F"].isUnbound()) {
       invalidate(model_.temperature_c, now, false);
     }
   }
@@ -163,15 +166,18 @@ class Adapter {
     bool conflict = (has_mph && has_ms && std::fabs(mph - from_ms) > 0.05) ||
                     (has_mph && has_kmh && std::fabs(mph - from_kmh) > 0.05) ||
                     (has_ms && has_kmh && std::fabs(from_ms - from_kmh) > 0.05);
-    if (conflict) invalidate(model_.wind_mph, now, true);
+    if ((has_mph && mph < 0) || (has_ms && ms < 0) || (has_kmh && kmh < 0))
+      invalidate(model_.wind_mph, now, false);
+    else if (conflict) invalidate(model_.wind_mph, now, true);
     else if (sources) assign(model_.wind_mph, has_mph ? mph : has_ms ? from_ms : from_kmh, now);
-    else if (!native["wind_avg_mi_h"].isNull() || !native["wind_avg_m_s"].isNull() ||
-             !native["wind_avg_km_h"].isNull()) invalidate(model_.wind_mph, now, false);
+    else if (!native["wind_avg_mi_h"].isUnbound() || !native["wind_avg_m_s"].isUnbound() ||
+             !native["wind_avg_km_h"].isUnbound()) invalidate(model_.wind_mph, now, false);
   }
 
   static void updateSingle(JsonVariantConst source, Value& target, uint64_t now,
                            double minimum, double maximum, bool maximum_inclusive = false) {
-    if (source.isNull()) return;
+    if (source.isUnbound()) return;
+    if (source.isNull()) { invalidate(target, now, false); return; }
     double value = 0;
     if (!number(source, value) || value < minimum ||
         (maximum_inclusive ? value > maximum : value >= maximum)) {
@@ -194,7 +200,7 @@ class Adapter {
     } else if (has_mm) {
       assign(model_.rain_counter, millimetres, now);
       model_.rain_unit = RainUnit::Millimetre;
-    } else if (!native["rain_in"].isNull() || !native["rain_mm"].isNull()) {
+    } else if (!native["rain_in"].isUnbound() || !native["rain_mm"].isUnbound()) {
       invalidate(model_.rain_counter, now, false);
     }
   }

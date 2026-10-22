@@ -1,6 +1,7 @@
 #include "capture_storage.h"
 
 #include "capture_storage_format.h"
+#include "capture_start_policy.h"
 
 #include <LittleFS.h>
 #include <esp_timer.h>
@@ -23,6 +24,7 @@ size_t batch_size = 0;
 uint32_t batch_records = 0;
 uint64_t last_flush_ms = 0;
 uint32_t storage_drops = 0, crc_failures = 0;
+bool initialized = false;
 bool mounted = false, session_active = false, write_failed = false;
 String message = "Capture storage not initialized";
 
@@ -97,10 +99,10 @@ uint32_t scanFile(const String& path, bool pulses, bool& end_seen,
   return static_cast<uint32_t>(offset);
 }
 
-void recover() {
+bool recover() {
   session_list = {};
   File directory = LittleFS.open(kDirectory);
-  if (!directory || !directory.isDirectory()) { message = "Capture directory unavailable"; return; }
+  if (!directory || !directory.isDirectory()) { message = "Capture directory unavailable"; return false; }
   while (File entry = directory.openNextFile()) {
     if (entry.isDirectory()) { entry.close(); continue; }
     String name = entry.name();
@@ -132,6 +134,7 @@ void recover() {
   }
   directory.close();
   message = "Capture storage ready; existing sessions preserved";
+  return true;
 }
 
 bool flushBatch() {
@@ -176,8 +179,8 @@ bool flushBatch() {
 }  // namespace
 
 bool begin() {
-  if (mounted) return true;
-  mounted = LittleFS.begin(false);
+  if (initialized) return true;
+  if (!mounted) mounted = LittleFS.begin(false);
   if (!mounted) { message = "LittleFS mount failed; no format attempted"; return false; }
   if (!LittleFS.exists("/connect") && !LittleFS.mkdir("/connect")) {
     message = "Connect storage directory unavailable";
@@ -187,12 +190,14 @@ bool begin() {
     message = "Capture directory unavailable";
     return false;
   }
-  recover();
+  if (!recover()) return false;
+  initialized = true;
   return true;
 }
 
 bool beginSession(const char* session_id) {
-  if (!mounted && !begin()) return false;
+  if (!initialized && !begin()) return false;
+  if (const char* blocker = state().start_blocker) { message = blocker; return false; }
   if (session_active || !validId(session_id) || freeSession() < 0 || findSession(session_id) >= 0) {
     message = "Session limit reached or session identifier already exists";
     return false;
@@ -288,7 +293,7 @@ bool deleteSession(const char* session_id) {
   if (LittleFS.exists(decoded_path) && !LittleFS.remove(decoded_path)) ok = false;
   if (LittleFS.exists(pulse_path) && !LittleFS.remove(pulse_path)) ok = false;
   if (LittleFS.exists(decoded_path) || LittleFS.exists(pulse_path)) {
-    recover();
+    if (!recover()) initialized = false;
     message = "Session deletion incomplete; remaining evidence was retained";
     return false;
   }
@@ -324,7 +329,7 @@ const std::array<SessionInfo, kSessionLimit>& sessions() { return session_list; 
 
 State state() {
   State result;
-  result.ready = mounted;
+  result.ready = initialized;
   result.active = session_active;
   result.total_bytes = LittleFS.totalBytes();
   result.used_bytes = LittleFS.usedBytes();
@@ -335,6 +340,9 @@ State state() {
     ++result.sessions;
     if (session.interrupted) ++result.recovered_sessions;
   }
+  result.start_blocker = storageStartBlocker(result.ready, result.active, result.sessions,
+      kSessionLimit, result.free_bytes, kMinimumFreeToStart);
   return result;
 }
+const char* statusMessage() { return message.c_str(); }
 }  // namespace wxconnect::capture::storage

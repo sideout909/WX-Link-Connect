@@ -8,7 +8,7 @@ receiver = (root / "firmware/src/radio_receiver.cpp").read_text()
 live = main.split("void liveReceive(){", 1)[1].split("\n}\n", 1)[0]
 ordered = [
     "capture_session.enqueueDecoderOutput",
-    "deserializeJson(d,packet)",
+    "wxconnect::preview::parseNative(packet,native_length,d)",
     "capture_candidates.observe",
     "preview_adapter.ingest",
     "station_confirmed",
@@ -46,4 +46,6 @@ if "kPoolBytes = 256 * 1024" not in (root / "firmware/include/capture_storage.h"
     raise SystemExit("FAIL: per-stream storage budgets changed without review")
 if "capture_session.active()" not in live:
     raise SystemExit("FAIL: callback queue is not gated by explicit capture session state")
+if "wxconnect::preview::parseNative(packet,native_length,d)" not in live:
+    raise SystemExit("FAIL: broker preview parse must preserve native packet bytes")
 print("PASS: callback copy is bounded and nonblocking; native records reach capture before Atlas filtering")

@@ -36,6 +36,7 @@
 #include "connect_decoder_profile.h"
 #include "capture_devices.h"
 #include "preview_adapter.h"
+#include "connect_preview.h"
 #include "capture_pulse.h"
 #include "capture_storage.h"
 #include "capture_lease.h"
@@ -500,7 +501,8 @@ void draw() {
   auto fresh=[&](const wxconnect::preview::Value& field){return field.valid&&now>=field.time_ms&&now-field.time_ms<60000;};
   const String device=preview.selected
       ? String(preview.identity.has_model?preview.identity.model.data():"Unknown decoder")+
-          (preview.identity.has_id?" · "+String(preview.identity.id.data()):" · identity incomplete")
+          (preview.identity.has_id?" · "+String(preview.identity.id.data()):" · identity incomplete")+
+          (preview.identity.has_channel?" · "+String(preview.identity.channel.data()):String())
       : String("Waiting for a decoded device");
   text("WX CONNECT",10,7,kCyan,&fonts::Font2);
   text(radio_receiver::ready()?"RF +":"RF --",204,9,radio_receiver::ready()?kGreen:kAmber,&fonts::Font0);
@@ -580,6 +582,19 @@ void status(const char* event = "status") {
   out["display_initialized"]=display_ok;out["width"]=display.width();out["height"]=display.height();
   out["display_theme"]=services::settings().display_theme;out["display_brightness"]=display_brightness;out["display_idle_s"]=(uptimeMs()-display_idle.last_interaction)/1000;
   out["flash_bytes"]=ESP.getFlashChipSize();out["psram_bytes"]=ESP.getPsramSize();
+  const auto capture_storage=wxconnect::capture::storage::state();
+  out["storage_ready"]=capture_storage.ready;out["stored_sessions"]=capture_storage.sessions;
+  out["storage_free_bytes"]=capture_storage.free_bytes;
+  out["storage_message"]=wxconnect::capture::storage::statusMessage();
+  const auto& preview_health=preview_adapter.model();
+  out["preview_selected"]=preview_health.selected;out["preview_packets"]=preview_health.packets;
+  out["preview_temperature_valid"]=preview_health.temperature_c.valid;
+  out["preview_humidity_valid"]=preview_health.humidity_pct.valid;
+  out["preview_wind_valid"]=preview_health.wind_mph.valid;
+  out["preview_direction_valid"]=preview_health.wind_direction_deg.valid;
+  out["preview_rain_valid"]=preview_health.rain_counter.valid;
+  out["preview_light_valid"]=preview_health.light_lux.valid;
+  out["preview_uv_valid"]=preview_health.uv_index.valid;
   out["capture_active"]=capture_session.active();
   out["capture_owner"]=capture_lease.owner()==CaptureOwner::Device?"device":
       capture_lease.owner()==CaptureOwner::Browser?"browser":capture_lease.owner()==CaptureOwner::Usb?"usb":"none";
@@ -648,6 +663,15 @@ void attachCaptureDiagnostics(const char* reason){
   capture_record_scratch.capture_diagnostics_valid=true;
   std::strncpy(capture_record_scratch.stop_reason.data(),reason,capture_record_scratch.stop_reason.size()-1);
 }
+bool finishCaptureRecord(const char* reason){
+  attachCaptureDiagnostics(reason);
+  const bool written=writeCaptureRecord(capture_record_scratch);
+  const bool saved=written&&wxconnect::capture::storage::finish();
+  capture_lease.clear();
+  if(saved)capture_stop_reason=reason;
+  else if(written){capture_session.storageDrop();capture_stop_reason="storage_flush_failed";}
+  return saved;
+}
 void drainPulseQueue(){
   while(radio_receiver::popPulse(capture_pulse_scratch)){
     if(capture_session.makePulseRecord(capture_pulse_scratch,millis(),capture_clock,capture_record_scratch))writeCaptureRecord(capture_record_scratch);
@@ -656,7 +680,39 @@ void drainPulseQueue(){
 void drainCaptureQueue() {
   while(capture_session.popPacket(capture_record_scratch,capture_clock))writeCaptureRecord(capture_record_scratch);
 }
-const wxconnect::capture::CandidateIdentity* soleCandidate();
+const char* captureStartBlocker(){
+  if(capture_session.active())return "Recording is already running.";
+  if(setup_restart.pending())return "The device is restarting. Reconnect after restart.";
+  if(wxconnect::connect_migration::blocksCapture())return "A firmware transition is in progress.";
+  if(!std::strcmp(services::wifiScan().state,"running"))return "Wait for the Wi-Fi scan to finish.";
+  if(!radio_receiver::ready())return "The radio is unavailable. Check receiver initialization and wiring.";
+  if(capture_lease.owner()!=CaptureOwner::None)return "Another capture controller is still active.";
+  return wxconnect::capture::storage::state().start_blocker;
+}
+bool beginLiveCapture(CaptureOwner owner,const char*& error){
+  error=captureStartBlocker();if(error)return false;
+  if(services::clockValid())capture_clock.synchronize(millis(),uint64_t(time(nullptr))*1000);
+  uint8_t entropy[16];for(size_t i=0;i<sizeof(entropy);i+=4){const uint32_t value=esp_random();memcpy(entropy+i,&value,4);}
+  char id[wxconnect::capture::kSessionIdChars+1];wxconnect::capture::formatSessionId(entropy,id);
+  if(!wxconnect::capture::storage::beginSession(id)){
+    error="Capture files could not be opened; check storage status.";return false;
+  }
+  if(!capture_session.start(id,wxconnect::capture::Source::Live,wxconnect::radio_profile::kId,
+      millis(),capture_clock,capture_record_scratch)){
+    wxconnect::capture::storage::finish();wxconnect::capture::storage::deleteSession(id);
+    error="Capture could not be initialized.";return false;
+  }
+  if(!capture_lease.begin(owner,uptimeMs())){
+    capture_session.abortForStorageFailure();wxconnect::capture::storage::finish();
+    wxconnect::capture::storage::deleteSession(id);error="Capture controller could not be acquired.";return false;
+  }
+  capture_started_at_ms=uptimeMs();capture_stop_reason="none";
+  receiver_drops_at_start=radio_receiver::dropped();raw_drops_at_start=radio_receiver::rawDropped();raw_skips_at_start=radio_receiver::rawSkipped();
+  if(!writeCaptureRecord(capture_record_scratch)){
+    error="Capture start could not be saved; check storage status.";return false;
+  }
+  error=nullptr;return true;
+}
 bool selectPreview(const wxconnect::capture::CandidateIdentity& candidate);
 void refreshAutomaticPreview();
 void liveReceive();
@@ -693,30 +749,11 @@ void command(const char* input) {
   request_id=doc["request_id"]|uint32_t(0);
   const char* op=doc["op"]|"";
   if (!strcmp(op,"capture_start")) {
-    if(setup_restart.pending()||!std::strcmp(services::wifiScan().state,"running")||wxconnect::connect_migration::blocksCapture()||capture_session.active()||!radio_receiver::ready()){
-      const char* reason=wxconnect::connect_migration::blocksCapture()?"firmware_transition_busy":capture_session.active()?"already_recording":"radio_unavailable";
-      Serial.printf("{\"event\":\"capture_control\",\"request_id\":%u,\"ok\":false,\"reason\":\"%s\"}\n",request_id,reason);
-    } else {
-      if(services::clockValid())capture_clock.synchronize(millis(),uint64_t(time(nullptr))*1000);
-      uint8_t random_bytes[16];
-      for(size_t i=0;i<sizeof(random_bytes);i+=sizeof(uint32_t)){
-        const uint32_t random_word=esp_random();memcpy(random_bytes+i,&random_word,sizeof(random_word));
-      }
-      char session_id[wxconnect::capture::kSessionIdChars+1];
-      wxconnect::capture::formatSessionId(random_bytes,session_id);
-      if(wxconnect::capture::storage::beginSession(session_id)&&
-         capture_session.start(session_id,wxconnect::capture::Source::Live,wxconnect::radio_profile::kId,millis(),capture_clock,capture_record_scratch)){
-        capture_lease.begin(CaptureOwner::Usb,uptimeMs());
-        capture_stop_reason="none";
-        receiver_drops_at_start=radio_receiver::dropped();raw_drops_at_start=radio_receiver::rawDropped();raw_skips_at_start=radio_receiver::rawSkipped();
-        capture_started_at_ms=uptimeMs();
-        const bool recorded=writeCaptureRecord(capture_record_scratch);
-        Serial.printf("{\"event\":\"capture_control\",\"request_id\":%u,\"ok\":%s,\"session_id\":\"%s\",\"reason\":\"%s\"}\n",request_id,recorded?"true":"false",recorded?session_id:"",recorded?"none":"storage_write_failed");
-      } else {
-        if(wxconnect::capture::storage::state().active)wxconnect::capture::storage::finish();
-        Serial.printf("{\"event\":\"capture_control\",\"request_id\":%u,\"ok\":false,\"reason\":\"storage_unavailable_or_invalid_session\"}\n",request_id);
-      }
-    }
+    const char* error=nullptr;const bool started=beginLiveCapture(CaptureOwner::Usb,error);
+    StaticJsonDocument<256> reply;reply["event"]="capture_control";reply["request_id"]=request_id;
+    reply["ok"]=started;reply["session_id"]=started?capture_session.sessionId():"";
+    reply["reason"]=error?error:"none";
+    serializeJson(reply,Serial);Serial.println();
   }
   else if (!strcmp(op,"capture_stop")) {
     if(capture_lease.owner()!=CaptureOwner::Usb&&capture_lease.owner()!=CaptureOwner::Device){
@@ -726,8 +763,7 @@ void command(const char* input) {
     liveReceive();
     drainCaptureQueue();
     if(capture_session.stop(millis(),capture_clock,capture_record_scratch)){
-      attachCaptureDiagnostics("requested");
-      const bool saved=writeCaptureRecord(capture_record_scratch)&&wxconnect::capture::storage::finish();capture_lease.clear();
+      const bool saved=finishCaptureRecord("requested");
       Serial.printf("{\"event\":\"capture_control\",\"request_id\":%u,\"ok\":%s,\"storage_flushed\":%s}\n",request_id,saved?"true":"false",saved?"true":"false");
     } else Serial.printf("{\"event\":\"capture_control\",\"request_id\":%u,\"ok\":false,\"reason\":\"not_recording_or_queue_pending\"}\n",request_id);
   }
@@ -878,14 +914,6 @@ void receive() {
     }
   }
 }
-const wxconnect::capture::CandidateIdentity* soleCandidate(){
-  const wxconnect::capture::CandidateIdentity* found=nullptr;
-  for(const auto& candidate:capture_candidates.entries())if(candidate.occupied){
-    if(found)return nullptr;
-    found=&candidate;
-  }
-  return found;
-}
 bool previewMatches(const wxconnect::capture::CandidateIdentity& candidate){
   const auto& selected=preview_adapter.model().identity;
   return preview_adapter.model().selected&&candidate.has_protocol==selected.has_protocol&&
@@ -975,6 +1003,8 @@ void connectStatusRoute(){
       counters.invalid_json_drops+counters.decoder_truncation_drops+counters.queue_full_drops+
       counters.storage_drops+counters.transport_drops;
   document["radio_ready"]=radio_receiver::ready();document["wifi"]=services::state().wifi;
+  document["capture_start_blocker"]=captureStartBlocker();
+  document["storage_message"]=wxconnect::capture::storage::statusMessage();
   document["storage_ready"]=storage.ready;document["storage_free_bytes"]=storage.free_bytes;
   document["stored_sessions"]=storage.sessions;document["max_sessions"]=wxconnect::capture::storage::kSessionLimit;
   const auto transition=wxconnect::connect_migration::state();
@@ -1117,28 +1147,19 @@ void configPostRoute(){
 }
 void captureStartRoute(){
   if(!authorizeWeb(true))return;
-  if(wxconnect::connect_migration::blocksCapture()){sendApiError(409,"firmware_transition_in_progress");return;}
-  if(!std::strcmp(services::wifiScan().state,"running")||capture_session.active()||!radio_receiver::ready()){sendApiError(409,"capture_busy_or_radio_unavailable");return;}
-  if(services::clockValid())capture_clock.synchronize(millis(),uint64_t(time(nullptr))*1000);
-  uint8_t entropy[16];for(size_t i=0;i<sizeof(entropy);i+=sizeof(uint32_t)){const uint32_t word=esp_random();memcpy(entropy+i,&word,sizeof(word));}
-  char id[wxconnect::capture::kSessionIdChars+1];wxconnect::capture::formatSessionId(entropy,id);
-  if(!wxconnect::capture::storage::beginSession(id)||!capture_session.start(id,wxconnect::capture::Source::Live,wxconnect::radio_profile::kId,millis(),capture_clock,capture_record_scratch)){
-    if(wxconnect::capture::storage::state().active)wxconnect::capture::storage::finish();sendApiError(503,"capture_storage_unavailable");return;
-  }
-  capture_lease.begin(CaptureOwner::Browser,uptimeMs());
-  capture_stop_reason="none";
-  receiver_drops_at_start=radio_receiver::dropped();raw_drops_at_start=radio_receiver::rawDropped();raw_skips_at_start=radio_receiver::rawSkipped();
-  capture_started_at_ms=uptimeMs();
-  if(!writeCaptureRecord(capture_record_scratch)){sendApiError(507,"capture_storage_write_failed");return;}
-  StaticJsonDocument<128> response;response["ok"]=true;response["session_id"]=id;sendJson(response,201);
+  const char* error=nullptr;
+  // Starting in a browser is a deliberate device recording, not a browser lease.
+  if(!beginLiveCapture(CaptureOwner::Device,error)){sendApiError(409,error);return;}
+  StaticJsonDocument<160> response;response["ok"]=true;
+  response["session_id"]=capture_session.sessionId();response["capture_owner"]="device";
+  sendJson(response,201);
 }
 void captureStopRoute(){
   if(!authorizeWeb(true))return;
   if(!capture_session.active()||(capture_lease.owner()!=CaptureOwner::Browser&&capture_lease.owner()!=CaptureOwner::Device)){sendApiError(409,"browser_capture_not_active");return;}
   radio_receiver::stopRawWindow();liveReceive();drainCaptureQueue();
   if(!capture_session.stop(millis(),capture_clock,capture_record_scratch)){sendApiError(409,"capture_queue_pending");return;}
-  attachCaptureDiagnostics("requested");
-  const bool saved=writeCaptureRecord(capture_record_scratch)&&wxconnect::capture::storage::finish();capture_lease.clear();
+  const bool saved=finishCaptureRecord("requested");
   StaticJsonDocument<128> response;response["ok"]=true;response["storage_flushed"]=saved;sendJson(response,saved?200:507);
 }
 void captureHeartbeatRoute(){
@@ -1263,8 +1284,8 @@ void beginWebServer(){
 }
 void refreshAutomaticPreview(){
   if(preview_explicit)return;
-  const auto* candidate=soleCandidate();
-  if(!candidate){preview_adapter.clearSelection();return;}
+  const auto* candidate=wxconnect::preview::automaticCandidate(capture_candidates,preview_adapter);
+  if(!candidate)return;
   if(!previewMatches(*candidate))selectPreview(*candidate);
 }
 void touch() {
@@ -1287,7 +1308,7 @@ void liveReceive(){
     }
     live_packets.observe(packet,native_length,truncated,uptimeMs());
     if(truncated)continue;
-    StaticJsonDocument<2048>d;if(deserializeJson(d,packet))continue;
+    StaticJsonDocument<2048>d;if(!wxconnect::preview::parseNative(packet,native_length,d))continue;
     char protocol[128],model[128],identity[128],channel[128];
     const bool has_protocol=nativeField(d.as<JsonVariantConst>(),"protocol",protocol,sizeof(protocol));
     const bool has_model=nativeField(d.as<JsonVariantConst>(),"model",model,sizeof(model));
@@ -1376,29 +1397,15 @@ void automaticCaptureTick(){
      automatic_capture.durationExpired(now,capture_started_at_ms)){
     radio_receiver::stopRawWindow();liveReceive();drainCaptureQueue();
     if(capture_session.stop(millis(),capture_clock,capture_record_scratch)){
-      attachCaptureDiagnostics("duration_limit");
-      const bool saved=writeCaptureRecord(capture_record_scratch);
-      const bool flushed=saved&&wxconnect::capture::storage::finish();
-      capture_lease.clear();
-      if(flushed)capture_stop_reason="duration_limit";
-      else if(saved){capture_session.storageDrop();capture_stop_reason="storage_flush_failed";}
+      finishCaptureRecord("duration_limit");
     }
   }
   const bool blocked=replay||setup_restart.pending()||wxconnect::connect_migration::blocksCapture()||
       !std::strcmp(services::wifiScan().state,"running");
   if(!automatic_capture.claim(services::settings().ssid.length()>0,services::state().wifi,
       radio_receiver::ready(),blocked,capture_session.active()))return;
-  if(services::clockValid())capture_clock.synchronize(millis(),uint64_t(time(nullptr))*1000);
-  uint8_t entropy[16];for(size_t i=0;i<sizeof(entropy);i+=4){const uint32_t value=esp_random();memcpy(entropy+i,&value,4);}
-  char id[wxconnect::capture::kSessionIdChars+1];wxconnect::capture::formatSessionId(entropy,id);
-  if(!wxconnect::capture::storage::beginSession(id)||!capture_session.start(id,
-      wxconnect::capture::Source::Live,wxconnect::radio_profile::kId,millis(),capture_clock,capture_record_scratch)){
-    if(wxconnect::capture::storage::state().active)wxconnect::capture::storage::finish();
-    capture_stop_reason="auto_start_storage_unavailable";return;
-  }
-  capture_lease.begin(CaptureOwner::Device,now);capture_started_at_ms=now;
-  receiver_drops_at_start=radio_receiver::dropped();raw_drops_at_start=radio_receiver::rawDropped();raw_skips_at_start=radio_receiver::rawSkipped();
-  capture_stop_reason="none";writeCaptureRecord(capture_record_scratch);
+  const char* error=nullptr;
+  if(!beginLiveCapture(CaptureOwner::Device,error))capture_stop_reason="automatic_start_failed";
 }
 void loop() {
   if(!store){delay(100);return;}
@@ -1410,11 +1417,7 @@ void loop() {
     radio_receiver::stopRawWindow();
     liveReceive();
     if(capture_session.stop(millis(),capture_clock,capture_record_scratch)){
-      attachCaptureDiagnostics("lease_expired");
-      const bool saved=writeCaptureRecord(capture_record_scratch);
-      if(saved)wxconnect::capture::storage::finish();
-      capture_lease.clear();
-      if(saved)capture_stop_reason="lease_expired";
+      finishCaptureRecord("lease_expired");
       Serial.println("{\"event\":\"capture_lease_expired\",\"stopped\":true}");
     }
   }

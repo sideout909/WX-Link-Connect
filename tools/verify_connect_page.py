@@ -39,6 +39,7 @@ def main():
                           "light_lux": 0, "uv_index": None}}
     scan_mode = {"value": "normal", "polls": 0}
     config_failure = {"value": False}
+    capture_failure = {"value": False}
     calls = []
     errors = []
     line = json.dumps({"schema": 1, "event": "session", "session_id": SESSION, "seq": 0,
@@ -97,13 +98,16 @@ def main():
                 status["main_transition"].update(busy=True, progress=0,
                                                   message="WX-Link transition queued")
             if path.endswith("/start"):
+                if capture_failure["value"]:
+                    route.fulfill(status=409, content_type="application/json", body=json.dumps({"error":"Capture files could not be opened; check storage status."}))
+                    return
                 status["active"] = True
-                status["capture_owner"] = "browser"
+                status["capture_owner"] = "device"
             elif path.endswith("/stop"):
                 status["active"] = False
                 status["capture_owner"] = "none"
             route.fulfill(status=200, content_type="application/json",
-                            body=json.dumps({"ok": True, "session_id": SESSION}))
+                            body=json.dumps({"ok": True, "session_id": SESSION, "capture_owner": status["capture_owner"]}))
         else:
             errors.append(path)
             route.fulfill(status=404, body="not found")
@@ -131,10 +135,33 @@ def main():
         page.get_by_role("button", name="Devices").click()
         page.get_by_role("button", name="Preview").click()
         page.get_by_role("button", name="Capture").click()
+        # Storage and retained-session blockers must be actionable, not a silent disabled button.
+        status.update(storage_ready=False, capture_start_blocker="Capture storage is unavailable; check storage status. No data was erased.", storage_message="Capture directory unavailable")
+        page.evaluate("refresh()")
+        assert page.locator("#start").is_disabled()
+        assert "unavailable" in page.locator("#capture-readiness").inner_text()
+        assert page.locator("#storage-status").inner_text() == "Capture directory unavailable"
+        status.update(storage_ready=True, capture_start_blocker="Eight sessions retained. Export and delete a Connect session to start another.")
+        page.evaluate("refresh()")
+        assert "Export and delete" in page.locator("#capture-readiness").inner_text()
+        status.update(capture_start_blocker=None)
+        page.evaluate("refresh()")
+        capture_failure["value"] = True
         page.locator("#start").click()
+        page.wait_for_function("document.querySelector('#capture-feedback').textContent.includes('could not be opened')")
+        capture_failure["value"] = False
+        page.locator("#start").click()
+        page.wait_for_function("document.querySelector('#capture-state').textContent.includes('continues with this page closed')")
+        assert page.locator("#start").inner_text() == "Recording is running"
         page.locator("#raw-enable").check()
         page.locator("#raw-start").click()
         page.locator("#stop").click()
+        # Legacy browser lease handling is still supported without assigning it to new starts.
+        status.update(active=True,capture_owner="browser",session_id=SESSION)
+        page.evaluate("refresh()")
+        page.evaluate("heartbeat()")
+        status.update(active=False,capture_owner="none",session_id=None)
+        page.evaluate("refresh()")
         with page.expect_download():
             page.get_by_role("button", name="Download decoded").click()
         page.get_by_role("button", name="Delete").click()

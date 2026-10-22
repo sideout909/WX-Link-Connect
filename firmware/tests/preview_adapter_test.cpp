@@ -29,6 +29,18 @@ int main() {
   assert(adapter.model().humidity_pct.valid && adapter.model().humidity_pct.value == 100);
   assert(adapter.model().wind_mph.time_ms == 1000);  // Omitted field keeps its own age.
 
+  Adapter nullable;nullable.select("acurite","Acurite-Atlas","101","A");
+  assert(nullable.ingest(first,sizeof(first)-1,1000));
+  constexpr char nulls[]=R"({"protocol":"acurite","model":"Acurite-Atlas","id":101,"channel":"A","temperature_F":null,"humidity":null,"wind_avg_mi_h":null,"wind_dir_deg":null,"rain_in":null,"lux":null,"uv":null})";
+  assert(nullable.ingest(nulls,sizeof(nulls)-1,2000));
+  const auto& n=nullable.model();
+  assert(!n.temperature_c.valid && !n.humidity_pct.valid && !n.wind_mph.valid);
+  assert(!n.wind_direction_deg.valid && !n.rain_counter.valid && !n.light_lux.valid && !n.uv_index.valid);
+  constexpr char north[]=R"({"protocol":"acurite","model":"Acurite-Atlas","id":101,"channel":"A","wind_dir_deg":360,"wind_avg_mi_h":-1})";
+  assert(nullable.ingest(north,sizeof(north)-1,3000));
+  assert(nullable.model().wind_direction_deg.valid && nullable.model().wind_direction_deg.value==360);
+  assert(!nullable.model().wind_mph.valid);
+
   constexpr char other[] = R"({"protocol":"acurite","model":"Acurite-Atlas","id":202,"channel":"A","temperature_F":90})";
   assert(!adapter.ingest(other, sizeof(other) - 1, 3000));
   assert(adapter.model().temperature_c.value == 0 && adapter.model().packets == 2);

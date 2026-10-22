@@ -1,4 +1,36 @@
-# WXLink Connect 0.1.1 software status
+# WXLink Connect software status
+
+## Local 0.1.2 test candidate — not flashed or published
+
+The owner postponed flashing while working on main WX-Link. The current source
+build identifies as 0.1.2; published 0.1.1 and its assets remain unchanged.
+See [the investigation](REVIEW_0.1.2.md) for reproduced failures and test scope.
+
+The Atlas broker now parses immutable native input, so ArduinoJson cannot destroy
+the packet before preview ingestion. Automatic preview waits for three recognized
+packets and retains its identity when neighbors appear. Explicit null values are
+unavailable, 360-degree direction is accepted and negative wind is rejected.
+Browser Start creates a bounded device-owned recording; browser closure does not
+end it. Shared startup readiness, actionable capture/storage messages and fully
+initialized storage readiness replace generic refusals and false-ready states.
+Stop paths retain real stop/flush-failure reasons. No format or data migration
+was introduced.
+
+Final SC05_X clean build passed in 30.62 seconds: 167,864 / 327,680 RAM bytes,
+1,377,065 / 3,342,336 app flash bytes. The application image is 1,377,424 bytes,
+SHA-256 `3dc8b47caa31b1470e77295a8ed87807456288b5d26a6b0d28de19fae753a4e8`.
+The full host suite, synthetic browser suite, preview AddressSanitizer/UBSan runs,
+compiled runtime/stack/RAM checks, isolation, capture order and decoder audits
+passed. Largest main frame: 6,576 bytes; loop override: 24 KiB; internal static
+symbols: 157,235 bytes within the 175 KiB guard. This is software evidence only;
+0.1.2 has no on-device or RF acceptance. M12 stays partial.
+
+Correction to earlier storage descriptions: the existing 256 KiB cap is per
+stream per session, not a shared global pool. Eight retained sessions and a
+512 KiB filesystem reserve remain unchanged. Browser-started sessions now have
+the same one-hour limit as automatic sessions; USB streaming retains its lease.
+
+## Published 0.1.1 software prerelease
 
 Version 0.1.1 is an experimental, owner-authorized software prerelease for
 initial device testing. It is not hardware-accepted and is not a validated
@@ -16,8 +48,8 @@ Milestone 12 remains partially complete until the hardware checks below pass.
   2.5 seconds. Reject scan/save during capture and refuse new mutations during restart.
 - Start one device-owned, bounded session on the first home-Wi-Fi connection per
   boot; it survives browser closure and Wi-Fi outage, ends at one hour or a storage
-  limit, and does not restart automatically after Stop/failure. Shared capture pool
-  stays 256 KiB, with at most eight retained sessions and no automatic deletion.
+  limit, and does not restart automatically after Stop/failure. Each decoded/pulse
+  stream has a 256 KiB budget; at most eight sessions are retained, with no automatic deletion.
 - Always show a Home decoded count and protected latest-live-native-JSON browser
   view, including unadapted devices, independently of recording/preview selection.
 - Add host lifecycle tests and browser coverage for hostile/empty/failed scans,

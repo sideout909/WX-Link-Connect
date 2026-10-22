@@ -21,6 +21,7 @@ struct SessionInfo {
 
 struct State {
   bool ready = false, active = false;
+  const char* start_blocker = nullptr;
   uint8_t sessions = 0, recovered_sessions = 0;
   uint64_t total_bytes = 0, used_bytes = 0, free_bytes = 0;
   uint32_t storage_drops = 0, crc_failures = 0;
@@ -37,4 +38,6 @@ bool readRecord(const char* session_id, bool pulses, uint32_t offset,
                 char* output, size_t capacity, size_t& length, uint32_t& next_offset);
 const std::array<SessionInfo, kSessionLimit>& sessions();
 State state();
+// Borrowed diagnostic string; valid until the next storage operation.
+const char* statusMessage();
 }  // namespace wxconnect::capture::storage

@@ -22,8 +22,8 @@ bash tools/test-firmware.sh
 No serial port is needed for host tests or compilation. Do not use a full-flash
 image or another PanelLan/CYD board profile. The development firmware image is
 `firmware/.pio/build/panellan_sc05_x/firmware.bin`; no device should be flashed
-as part of host checks. Version 0.1.1 is an experimental software prerelease for
-owner-led initial device testing; M12 hardware acceptance remains open. See
+as part of host checks. The current source builds the local 0.1.2 test candidate; the most recent
+published prerelease remains 0.1.1. Neither is hardware-accepted; M12 hardware acceptance remains open. See
 [software status](RELEASE_STATUS.md) for exact validation and the release link.
 
 ## Prepare the receiver
@@ -57,7 +57,10 @@ acknowledges the save, then reboots after 2.5 seconds. A failed save does not re
 Stop recording before scanning or saving settings. After reboot, reconnect to
 WXConnect or your home Wi-Fi and reopen `http://wxlink.local`.
 
-The Overview shows the selected preview device and received values. Missing
+After three packets, Connect automatically previews the first recognized weather
+identity with a device ID. Other decoded identities do not clear or replace that
+selection. Model, ID and channel remain separate identities; a missing native
+protocol field is allowed. The Overview shows the selected preview device and received values. Missing
 measurements stay unavailable. In Devices, select a preview identity; this
 changes the Home preview only. Recording continues for all enabled decoders.
 Unknown devices can be recorded even when no weather preview adapter exists.
@@ -69,8 +72,9 @@ one live recording automatically. A browser does not have to remain open, and a
 Wi-Fi outage does not end this device-owned session. It stops at one hour or a
 storage limit/failure. A stopped or failed session does not restart on reconnect;
 use Start capture deliberately or reboot to start another automatic session.
-Stop capture works for automatic sessions too. Manual browser and USB sessions
-retain their separate heartbeat leases; stop an automatic session before starting
+Stop capture works for automatic sessions too. Browser Start capture also creates a device-owned recording that continues
+with the page closed and has the same one-hour limit. USB-controlled sessions
+retain their heartbeat lease; stop an automatic session before starting
 a USB-controlled session.
 
 The Home screen always counts complete live decoded packets. The protected browser
@@ -81,10 +85,19 @@ the count. Truncated or invalid JSON is rejected and counted rather than present
 as a complete packet. Synthetic/replay inputs do not enter this live RF view.
 
 In Capture, stop the recording when you have enough evidence, then export it. The device
-retains up to eight sessions at once in a shared 256 KiB pool; export a session or deliberately delete
+retains up to eight sessions at once, with 256 KiB per decoded/pulse stream
+per session and a 512 KiB filesystem free-space reserve; export a session or deliberately delete
 one to free a slot. This is a retained-session limit, not a lifetime capture
 limit. Optional raw-pulse evidence requires a short, explicit window and is
 bounded; pulse records are not raw IQ and are not correlated to decoded packets.
+
+If Start says Recording is running, capture is already active; use Stop when you
+have enough evidence. If capture cannot start, the page shows the exact blocker
+and storage status. At eight retained sessions, export and deliberately delete a
+Connect session. At the filesystem reserve, free Connect space. An unavailable
+filesystem/directory is not reported as ready; no automatic format or deletion
+of main-project data is attempted. Normal application flashing preserves saved
+data; it does not provision or erase a filesystem.
 
 For USB collection, connect one device port and run:
 

@@ -82,7 +82,11 @@ frequency, modulation, bandwidth, RSSI policy and explicit capture limits. Recor
 requested and actual radio values separately. Do not dump NVS/config wholesale.
 Status/gap records report queue overflow, truncation, storage limits, pulse window
 and radio transitions. Reserve reporting capacity so a full queue cannot conceal
-its own losses. No capture collection begins until the user explicitly starts it.
+its own losses. As subsequently requested by the owner, decoded-packet recording starts on the
+first home-Wi-Fi connection after setup/boot, or through deliberate Start capture.
+Both are device-owned, bounded sessions; neither requires a browser heartbeat.
+Raw-pulse windows still require explicit initiation. Stop/failure stays stopped
+until a new explicit start or a reboot; no old session is silently overwritten.
 
 Pulse records have `pulse_us` and `gap_us` integer arrays of equal captured length,
 `original_count`, `captured_count`, `truncated`, `duration_us`, optional native
