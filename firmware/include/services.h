@@ -100,7 +100,16 @@ bool localNameReady();
 String setupWifiKey();
 String setupSsid();
 String adminPassword();
-bool saveConnectSettings(const Settings& settings);
+struct WifiNetwork { String ssid; int32_t rssi = 0; bool secured = false; };
+struct WifiScan {
+  const char* state = "idle";
+  std::array<WifiNetwork, 16> networks;
+  size_t count = 0;
+};
+bool startWifiScan();
+const WifiScan& wifiScan();
+bool saveConnectSettings(const Settings& settings, const String& new_admin = "",
+                         bool reconnect = true);
 bool changeAdminPassword(const String& password);
 void observeDiscovery(const station_discovery::Packet& packet, uint32_t now);
 void publish(const Observation& observation);

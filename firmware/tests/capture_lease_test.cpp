@@ -22,5 +22,13 @@ int main() {
   assert(usb.expired(20006));
   usb.clear();
   assert(usb.owner() == CaptureLease::Owner::None);
+  CaptureLease device;
+  assert(device.begin(CaptureLease::Owner::Device, 1));
+  assert(!device.expired(24ULL*60*60*1000));
+  assert(!device.heartbeat(CaptureLease::Owner::Browser, 100));
+  assert(!device.heartbeat(CaptureLease::Owner::Usb, 100));
+  device.clear();
+  assert(device.begin(CaptureLease::Owner::Browser, 1000));
+  assert(device.expired(21001));
   std::puts("Capture lease checks passed: browser/USB ownership, heartbeat renewal and expiry.");
 }

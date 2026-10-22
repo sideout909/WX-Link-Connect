@@ -5,6 +5,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <esp_timer.h>
+#include <esp_heap_caps.h>
+#include <new>
 #include <atomic>
 #include <cstring>
 
@@ -15,10 +17,12 @@ rtl_433_ESP receiver;
 // payload, plus oversized output so the broker can reject and count it.
 constexpr size_t kMessageSize = kDecodedBufferBytes;
 struct Message { char json[kMessageSize]; size_t length = 0; bool truncated = false; };
-Message messages[4];
+// Decoder callbacks run in task context. Allocate the fixed pool before reception;
+// keep scarce internal RAM available to Wi-Fi and HTTP. Never allocate in callbacks.
+Message* messages = nullptr;
 QueueHandle_t queue = nullptr, available = nullptr;
 wxconnect::capture::PulseQueue pulse_queue;
-char decoder_buffer[kMessageSize];
+char* decoder_buffer = nullptr;
 bool initialized = false;
 bool initialization_attempted = false;
 volatile uint32_t queue_drops = 0;
@@ -50,11 +54,24 @@ void rawDecoded(const int* pulses,const int* gaps,unsigned int count,
 }
 }
 bool begin() {
+  if (!messages) {
+    messages = static_cast<Message*>(heap_caps_malloc(sizeof(Message) * 4,
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    if (messages) for (unsigned i = 0; i < 4; ++i) new (messages + i) Message{};
+  }
+  if (!decoder_buffer) decoder_buffer = static_cast<char*>(heap_caps_malloc(kMessageSize,
+      MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  if (!messages || !decoder_buffer) {
+    heap_caps_free(messages); messages = nullptr;
+    heap_caps_free(decoder_buffer); decoder_buffer = nullptr;
+    initialization_attempted = true;
+    return false;
+  }
   if (!queue) queue=xQueueCreate(4,sizeof(uint8_t));
   if (!available) available=xQueueCreate(4,sizeof(uint8_t));
   if (!queue||!available)return false;
   if(uxQueueMessagesWaiting(available)==0){for(uint8_t i=0;i<4;++i)xQueueSend(available,&i,0);}
-  receiver.setCallbackWithStatus(decoded,decoder_buffer,sizeof(decoder_buffer));
+  receiver.setCallbackWithStatus(decoded,decoder_buffer,kMessageSize);
   receiver.setRawPulsesCallback(rawDecoded);
   initialization_attempted=true;
   initialized=receiver.begin(kGdo0,wxconnect::radio_profile::kCenterFrequencyMHz);

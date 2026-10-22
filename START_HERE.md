@@ -10,7 +10,7 @@ bash tools/pio.sh run -d firmware
 bash tools/test-firmware.sh
 ```
 
-No serial port is needed for these commands. Do not flash a device as part of these software checks. Version 0.1.0 is an experimental software prerelease for owner-led initial device testing, not a hardware-accepted release. Hardware and RF acceptance remain pending.
+No serial port is needed for these commands. Do not flash a device as part of these software checks. Version 0.1.1 is an experimental software prerelease for owner-led initial device testing, not a hardware-accepted release. Hardware and RF acceptance remain pending.
 
 The first-run admin credential is created in Connect's isolated settings. Do not import or reuse the original weather firmware's saved password. Never include NVS, credentials, full-flash images, owner logs or unreviewed captures in a bundle.
 

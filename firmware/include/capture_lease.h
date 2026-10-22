@@ -5,7 +5,7 @@
 namespace wxconnect::capture {
 class CaptureLease {
  public:
-  enum class Owner : uint8_t { None, Usb, Browser };
+  enum class Owner : uint8_t { None, Usb, Browser, Device };
   static constexpr uint64_t kTimeoutMs = 20000;
 
   bool begin(Owner owner, uint64_t now_ms) {
@@ -22,7 +22,7 @@ class CaptureLease {
   }
 
   bool expired(uint64_t now_ms) const {
-    return owner_ != Owner::None && now_ms >= last_heartbeat_ms_ &&
+    return owner_ != Owner::None && owner_ != Owner::Device && now_ms >= last_heartbeat_ms_ &&
            now_ms - last_heartbeat_ms_ > kTimeoutMs;
   }
 

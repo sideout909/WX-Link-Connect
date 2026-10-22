@@ -1,11 +1,30 @@
-# WXLink Connect 0.1.0 software status
+# WXLink Connect 0.1.1 software status
 
-Version 0.1.0 is an experimental, owner-authorized software prerelease for
+Version 0.1.1 is an experimental, owner-authorized software prerelease for
 initial device testing. It is not hardware-accepted and is not a validated
-production release. The release is [available as a GitHub prerelease](https://github.com/sideout909/WX-Link-Connect/releases/tag/v0.1.0).
+production release. The release is [available as a GitHub prerelease](https://github.com/sideout909/WX-Link-Connect/releases/tag/v0.1.1).
 Milestone 12 remains partially complete until the hardware checks below pass.
 
-## Reproducible software evidence
+## Changes in 0.1.1
+
+- Restore `http://wxlink.local` with mDNS and setup-network DNS; retain IP fallback.
+- Move the fixed decoder-message/formatter pools to checked PSRAM allocations,
+  freeing internal RAM for Wi-Fi/HTTP. A compiled RAM budget guards against regression.
+- Discover up to 16 nearby 2.4 GHz Wi-Fi names asynchronously; preserve manual
+  hidden-network entry and support explicitly clearing a saved password for open Wi-Fi.
+- Save Wi-Fi/admin/display settings together before scheduling a restart after
+  2.5 seconds. Reject scan/save during capture and refuse new mutations during restart.
+- Start one device-owned, bounded session on the first home-Wi-Fi connection per
+  boot; it survives browser closure and Wi-Fi outage, ends at one hour or a storage
+  limit, and does not restart automatically after Stop/failure. Shared capture pool
+  stays 256 KiB, with at most eight retained sessions and no automatic deletion.
+- Always show a Home decoded count and protected latest-live-native-JSON browser
+  view, including unadapted devices, independently of recording/preview selection.
+- Add host lifecycle tests and browser coverage for hostile/empty/failed scans,
+  hidden/open networks, failed persistence/restart feedback, automatic Stop and
+  native packet display. Synthetic tests remain separate from live evidence.
+
+## Software evidence
 
 The tested build command is:
 
@@ -16,9 +35,9 @@ bash tools/pio.sh run -d firmware
 It targets PanelLan ZX2D80CE02S-V10 / SC05_X, ESP32-S3 N8R2, with
 `espressif32@6.12.0`, Arduino-ESP32 2.0.17, LovyanGFX 1.2.7, ArduinoJson
 6.21.5, PanelLan 0.0.5, RadioLib 7.7.1 and `rtl_433_ESP` 0.6.3. The last
-software build used 244,912 of 327,680 reported RAM bytes (74.7%) and 1,333,317
-of 3,342,336 application flash bytes (39.9%). The application image is
-1,333,680 bytes; its SHA-256 is recorded in the release manifest and checksums.
+software build used 167,864 of 327,680 reported RAM bytes (51.2%) and 1,375,165
+of 3,342,336 application flash bytes (41.1%). The application image is
+1,375,536 bytes; its SHA-256 is recorded in the release manifest and checksums.
 
 The following host checks passed:
 
@@ -27,8 +46,7 @@ The following host checks passed:
 - `python3 tools/check-connect-isolation.py` — Connect-only settings/API and
   compiled exporter/updater isolation.
 - `python3 tools/check-connect-runtime.py` — compiler stack-frame budgets for
-  the receive loop and fixed-stack transition worker. Device stack high-water
-  remains unmeasured.
+  the receive loop and fixed-stack transition worker. Loaded stack high-water under RF/HTTP stress remains unmeasured.
 - `python3 tools/check-capture-order.py` — capture precedes station/preview
   filters and retains native decoded output.
 - `python3 tools/check-decoder-profile.py` — 20 unique registry symbols match
@@ -67,7 +85,15 @@ repository. It copies no Connect settings and uploads no captures.
   settings/filesystem behavior and first-boot setup on hardware.
 - Run and document an RF-loaded soak test.
 
-No device was flashed and no serial port was opened for this software release.
+Initial USB flashing is owner-authorized. The 0.1.0 repair boot showed an active
+AP, mDNS, initialized display/radio, 73–76 KiB free heap and one associated client.
+This is limited startup evidence, not RF or hardware acceptance. The flashed
+0.1.1 image reported home Wi-Fi connected, mDNS active, device-owned recording
+active, initialized display/radio and three live decoded packets. Initial free
+heap was approximately 63 KiB. These packets were not compared with a reference
+receiver and establish no station compatibility claim. The release manifest
+records the exact flashed image and bounded startup checks. Wi-Fi discovery/save/restart browser
+flows passed synthetic tests; full end-to-end phone acceptance remains pending.
 The local idea list in [WISHLIST.md](WISHLIST.md) includes a possible future
 owner-operated submission relay; there is no submission service or credential
 on the device in this release.

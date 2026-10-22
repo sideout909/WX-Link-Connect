@@ -22,7 +22,7 @@ bash tools/test-firmware.sh
 No serial port is needed for host tests or compilation. Do not use a full-flash
 image or another PanelLan/CYD board profile. The development firmware image is
 `firmware/.pio/build/panellan_sc05_x/firmware.bin`; no device should be flashed
-as part of host checks. Version 0.1.0 is an experimental software prerelease for
+as part of host checks. Version 0.1.1 is an experimental software prerelease for
 owner-led initial device testing; M12 hardware acceptance remains open. See
 [software status](RELEASE_STATUS.md) for exact validation and the release link.
 
@@ -37,12 +37,25 @@ receive-only. Do not connect expansion-header 5 V directly to the CC1101.
 ## Set up Connect
 
 Power the board and join its `WXConnect-…` setup network using the generated
-Connect setup key shown by the firmware. Open the local Connect setup page and
-authenticate as `admin`. The admin password is generated/stored in Connect's
+Connect setup key shown by the firmware. Stay connected if your phone warns
+that this network has no internet. Open **http://wxlink.local** (HTTP, not HTTPS)
+and authenticate as `admin`. If hostname discovery is unavailable on your client,
+use **http://192.168.4.1** while connected to the setup network. On home Wi-Fi,
+use `http://wxlink.local` or the home-network IP shown on the device. The setup
+network remains available; reconnect after a firmware restart. Automatic captive
+portal pop-up is not implemented. The admin password is generated/stored in Connect's
 isolated settings; choose a new one in Setup if desired. The original weather
 firmware's saved Wi-Fi/admin credentials are never imported. Keep the AP key
 and admin password private. Configure local Wi-Fi only if needed; capture and
 USB collection do not require cloud accounts.
+
+Open Setup to discover nearby 2.4 GHz networks automatically, or use Scan nearby
+Wi-Fi to refresh. Choose a network or type a hidden name manually. Scanning does
+not choose or connect to a network for you. For an open network, select Clear saved
+Wi-Fi password. Save and restart persists Wi-Fi/admin/display settings together,
+acknowledges the save, then reboots after 2.5 seconds. A failed save does not reboot.
+Stop recording before scanning or saving settings. After reboot, reconnect to
+WXConnect or your home Wi-Fi and reopen `http://wxlink.local`.
 
 The Overview shows the selected preview device and received values. Missing
 measurements stay unavailable. In Devices, select a preview identity; this
@@ -51,8 +64,24 @@ Unknown devices can be recorded even when no weather preview adapter exists.
 
 ## Capture and collect
 
-In Capture, explicitly start a session and stop it when finished. The device
-retains up to eight sessions at once; export a session or deliberately delete
+After setup, the first successful home-Wi-Fi connection after each boot starts
+one live recording automatically. A browser does not have to remain open, and a
+Wi-Fi outage does not end this device-owned session. It stops at one hour or a
+storage limit/failure. A stopped or failed session does not restart on reconnect;
+use Start capture deliberately or reboot to start another automatic session.
+Stop capture works for automatic sessions too. Manual browser and USB sessions
+retain their separate heartbeat leases; stop an automatic session before starting
+a USB-controlled session.
+
+The Home screen always counts complete live decoded packets. The protected browser
+shows the latest original native JSON, including unknown fields and source
+precision, independently of recording and preview selection. This latest-packet
+view is RAM-only and does not replace a stored capture. Repeated packets increment
+the count. Truncated or invalid JSON is rejected and counted rather than presented
+as a complete packet. Synthetic/replay inputs do not enter this live RF view.
+
+In Capture, stop the recording when you have enough evidence, then export it. The device
+retains up to eight sessions at once in a shared 256 KiB pool; export a session or deliberately delete
 one to free a slot. This is a retained-session limit, not a lifetime capture
 limit. Optional raw-pulse evidence requires a short, explicit window and is
 bounded; pulse records are not raw IQ and are not correlated to decoded packets.

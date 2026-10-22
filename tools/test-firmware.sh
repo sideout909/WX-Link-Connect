@@ -41,6 +41,10 @@ g++ -std=c++17 -Wall -Wextra -Werror \
     -I"$project_dir/firmware/include" \
     "$project_dir/firmware/tests/capture_storage_format_test.cpp" -o "$test_binary"
 "$test_binary"
+g++ -std=c++17 -Wall -Wextra -Werror \
+    -I"$project_dir/firmware/include" \
+    "$project_dir/firmware/tests/setup_restart_test.cpp" -o "$test_binary"
+"$test_binary"
 rtl_dir="$project_dir/vendor/rtl_433_ESP/src/rtl_433"
 cc -D_POSIX_C_SOURCE=200809L -std=c11 -Wall -Wextra -Werror -I"$project_dir/vendor/rtl_433_ESP/include" -I"$rtl_dir" \
     -c "$rtl_dir/data.c" -o "$test_binary.data.o"

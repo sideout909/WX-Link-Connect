@@ -100,5 +100,15 @@ symbols = subprocess.check_output([nm, "-C", str(ELF)], text=True)
 if not re.search(r"\bT\s+getArduinoLoopTaskStackSize\(\)", symbols):
     raise SystemExit("FAIL: firmware ELF does not contain the strong loop-stack override")
 
+# The first device boot left only ~5 KiB heap with 245 KiB static internal RAM.
+# Reserve at least ~80 KiB more for networking; PSRAM pools must not regress into BSS.
+sized_symbols = subprocess.check_output([nm, "-S", str(ELF)], text=True)
+internal_static = sum(int(m.group(1), 16) for line in sized_symbols.splitlines()
+    if (m := re.match(r"[0-9a-f]+\s+([0-9a-f]+)\s+[bBdD]\s+", line))
+    and 0x3fc80000 <= int(line.split()[0], 16) < 0x3fd00000)
+if internal_static > 175 * 1024:
+    raise SystemExit(f"FAIL: internal static RAM {internal_static} exceeds 175 KiB networking budget")
+print(f"PASS: internal static RAM {internal_static} bytes within 175 KiB budget")
+
 maximum = max(usage.values())
 print(f"PASS: runtime wiring and stack budget; largest main.cpp frame {maximum} bytes; migration frame {max(size for _, size in worker_frames)} bytes on a 16384-byte worker; loop task override 24576 bytes")

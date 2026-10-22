@@ -32,6 +32,11 @@ Enabled means compiled into the registry; no listed station is hardware-verified
 Profile switching and FSK are deferred. A successful host build does not prove RF
 reception, loaded power behavior, station compatibility, or browser behavior on hardware.
 
+Setup discovers nearby 2.4 GHz Wi-Fi networks and saves settings with an automatic
+restart. After home Wi-Fi connects, a bounded recording starts automatically; it
+continues without an open browser. Home counts live decoded packets, and the
+protected browser shows the latest native packet independently of recording.
+
 Capture sessions are bounded and retained locally. The USB collector creates a
 checksummed bundle; `python tools/connect_capture.py --validate-bundle PATH`
 validates it and `--review-bundle PATH` creates a separate privacy-reviewed
@@ -40,7 +45,7 @@ bundle manually; no automatic submission exists.
 
 See [software status](docs/RELEASE_STATUS.md) for exact checks, build size and remaining
 hardware acceptance tasks, and the [wishlist](docs/WISHLIST.md) for future ideas.
-Version 0.1.0 is an experimental software prerelease
+Version 0.1.1 is an experimental software prerelease
 for initial owner-led device testing. It has not passed hardware/RF acceptance.
 Host checks do not validate radio performance or station compatibility.
 
