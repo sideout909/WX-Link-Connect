@@ -10,13 +10,13 @@ bash tools/pio.sh run -d firmware
 bash tools/test-firmware.sh
 ```
 
-No serial port is needed for these commands. Do not flash a device as part of these software checks. The current source is a local-only 0.1.4-dev software audit candidate, not flashed or pushed. See docs/DEEP_AUDIT_0.1.4.md for public multi-station replay evidence and remaining hardware checks. The device restored in the preceding task was not accessed during this audit. Published prerelease 0.1.1 remains unchanged. See [the 0.1.2 investigation](docs/REVIEW_0.1.2.md) for the Atlas/capture fixes and their software evidence. Hardware and RF acceptance remain pending.
+No serial port is needed for these commands. Do not flash a device as part of these software checks. The current source is a local-only 0.1.5-dev test candidate; see docs/UPDATE_AND_DISPLAY_0.1.5.md for current device/build evidence. See docs/DEEP_AUDIT_0.1.4.md for public multi-station replay evidence and remaining hardware checks. The owner authorized device backup/clean installation and subsequent runtime investigation. Published prerelease 0.1.1 remains unchanged. See [the 0.1.2 investigation](docs/REVIEW_0.1.2.md) for the Atlas/capture fixes and their software evidence. Hardware and RF acceptance remain pending.
 
 The first-run admin credential is created in Connect's isolated settings. Do not import or reuse the original weather firmware's saved password. Never include NVS, credentials, full-flash images, owner logs or unreviewed captures in a bundle.
 
 After the main WX-Link release includes support for a captured station, volunteers
 can export needed sessions and use Setup → “Check and switch to WX-Link.” This is
-the only OTA action in Connect; it targets the fixed `sideout909/WX-Link` repository
+a distinct action from updating Connect itself; it targets the fixed `sideout909/WX-Link` repository
 and requires typed confirmation. Connect settings are not copied. On a new device,
 reconnect to WX-Link setup after reboot. See the [volunteer guide](docs/VOLUNTEER_GUIDE.md).
 

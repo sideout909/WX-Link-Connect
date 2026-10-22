@@ -126,3 +126,6 @@ python3 "$project_dir/tools/test-public-decoders.py"
 g++ -std=c++17 -Wall -Wextra -Werror -I"$project_dir/firmware/include" \
     -I"$project_dir/vendor/ArduinoJson/src" "$project_dir/firmware/tests/connect_migration_manifest_test.cpp" -o "$test_binary"
 "$test_binary" "$project_dir/firmware/tests/fixtures/main-release-v0.8.0.json"
+
+python3 -m unittest discover -s "$script_dir" -p 'test_connect_tls.py' -v
+python3 -m unittest discover -s "$script_dir" -p 'test_connect_update_package.py' -v

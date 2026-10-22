@@ -52,4 +52,19 @@ int main() {
   assert(!downloadHost("http://github.com/sideout909/WX-Link/image.bin"));
   assert(!downloadHost("https://github.com.attacker.example/image.bin"));
   assert(!downloadHost("https://objects.githubusercontent.com/image.bin\r\nHost: evil"));
+  assert(connectUpgrade("0.1.5","0.1.4"));
+  assert(connectUpgrade("0.1.5","0.1.5-dev"));
+  assert(!connectUpgrade("0.1.1","0.1.5-dev"));
+  assert(!connectUpgrade("0.1.5","0.1.5"));
+  assert(!connectUpgrade("0.1.6-beta","0.1.5"));
+  assert(!connectUpgrade("0.1.6","0.1.5-unknown"));
+  manifest.version="0.1.6";
+  manifest.firmware_url="https://github.com/sideout909/WX-Link-Connect/releases/download/v0.1.6/WXLink-Connect-v0.1.6.bin";
+  assert(validManifest(manifest,8388608,3342336,Target::Connect));
+  assert(!validManifest(manifest,8388608,3342336));
+  manifest.firmware_url="https://github.com/sideout909/WX-Link/releases/download/v0.1.6/weather-link-panellan_sc05_x.bin";
+  assert(!validManifest(manifest,8388608,3342336,Target::Connect));
+  assert(downloadHost(kConnectReleasesUrl));
+  assert(!downloadHost("https://api.github.com.evil/repos/foo"));
+
 }

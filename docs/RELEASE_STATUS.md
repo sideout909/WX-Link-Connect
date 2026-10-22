@@ -1,5 +1,17 @@
 # WXLink Connect software status
 
+## Local 0.1.5-dev device test — not published
+
+The owner authorized backup/clean flashing and runtime investigation. The current
+0.1.5-dev candidate is installed, retaining Connect Wi-Fi/settings/sessions during
+this follow-up upload. See [the update/display evidence](UPDATE_AND_DISPLAY_0.1.5.md).
+Normal CA-chain verification, fixed PSRAM buffers, bounded browser requests,
+manual Connect updates and Home glyph fixes are implemented. Main-release TLS
+manifest lookup and the Connect release API succeeded on the device in check-only
+mode. The owner confirmed the display fix. End-to-end installation, target boot,
+rollback, power-loss and wider RF acceptance remain pending. M12 remains partial.
+The public prerelease remains 0.1.1; no push or publication occurred.
+
 ## Local 0.1.4-dev audit candidate — not flashed or pushed
 
 See [the full audit](DEEP_AUDIT_0.1.4.md). Sixteen public upstream waveforms

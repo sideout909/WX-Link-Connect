@@ -2,6 +2,8 @@
 
 #include "connect_migration_policy.h"
 #include "connect_transfer.h"
+#include "connect_tls_roots.h"
+#include "connect_release.h"
 #include "firmware_version.h"
 
 #include <Arduino.h>
@@ -23,7 +25,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-extern const uint8_t root_bundle[] asm("_binary_certs_x509_crt_bundle_bin_start");
 
 namespace wxconnect::connect_migration {
 namespace {
@@ -106,13 +107,21 @@ class BoundedTlsClient : public WiFiClientSecure {
     if (!resolve(host, ip)) { reason_ = "DNS lookup failed or exceeded 5 seconds"; return 0; }
     if (expired()) return 0;
     setTimeout(uint32_t(std::max<int32_t>(1, (timeout + 999) / 1000)));
-    // Preserve SNI and hostname verification with the CA bundle. Never use an
-    // insecure client or verify the certificate against the resolved IP.
-    const int connected = WiFiClientSecure::connect(ip, port, host, nullptr, nullptr, nullptr);
+    // The explicit resolved-IP overload does not use setCACert's stored pointer.
+    // Pass the roots here to retain SNI/hostname verification and the normal
+    // mbedTLS trust-chain builder, avoiding the old dummy-CA bundle callback.
+    if (heap_caps_get_free_size(MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT)<65536 ||
+        heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT)<20000) {
+      reason_="Not enough internal RAM for TLS; retry after closing extra clients";
+      return 0;
+    }
+    const int connected = WiFiClientSecure::connect(ip, port, host, kGithubRoots, nullptr, nullptr);
     if (!connected) {
       char detail[64]{};
       const int code = lastError(detail, sizeof(detail));
-      std::snprintf(tls_reason_, sizeof(tls_reason_), "TLS/connect failed (%d): %.40s", code, detail);
+      if(code==-0x3000 || code==-0x2700)
+        std::snprintf(tls_reason_,sizeof(tls_reason_),"Certificate verification failed (%d); check device time and CA roots",code);
+      else std::snprintf(tls_reason_, sizeof(tls_reason_), "TLS/connect failed (%d): %.40s", code, detail);
       reason_ = tls_reason_;
     }
     return connected;
@@ -136,7 +145,7 @@ class BoundedTlsClient : public WiFiClientSecure {
 
 int get(HTTPClient& http, BoundedTlsClient& tls, String url) {
   tls.beginRequest();
-  tls.setCACertBundle(root_bundle);
+  tls.setCACert(kGithubRoots);
   tls.setHandshakeTimeout(6);
   tls.setTimeout(8);
   http.useHTTP10(true);
@@ -151,8 +160,9 @@ int get(HTTPClient& http, BoundedTlsClient& tls, String url) {
     http.addHeader("User-Agent", String("WXLink-Connect/") + firmware_version::current);
     const auto snapshot = state();
     char stage[128];
-    std::snprintf(stage, sizeof(stage), "%s: secure request %u/6 (DNS max 5s)",
-        snapshot.phase == Phase::Checking ? "WX-Link release" : "WX-Link image", redirect + 1);
+    std::snprintf(stage, sizeof(stage), "%s %s: secure request %u/6",
+        snapshot.target==migration_policy::Target::Connect ? "Connect" : "WX-Link",
+        snapshot.phase == Phase::Checking ? "release" : "image", redirect + 1);
     publish(snapshot.phase, true, false, snapshot.progress, stage);
     const int code = http.GET();
     if (code != 301 && code != 302 && code != 303 && code != 307 && code != 308) { tls.endRequest(); return code; }
@@ -171,11 +181,72 @@ int get(HTTPClient& http, BoundedTlsClient& tls, String url) {
   return -102;
 }
 
+using Body = std::unique_ptr<char, decltype(&heap_caps_free)>;
+bool fetchBody(HTTPClient& http, BoundedTlsClient& tls, size_t capacity,
+               Body& body, size_t& length) {
+  const int declared=http.getSize();
+  if(declared==0 || declared>int(capacity)) {http.end();fail("JSON response size is invalid");return false;}
+  body.reset(static_cast<char*>(heap_caps_malloc(capacity+1,MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT)));
+  if(!body){http.end();fail("JSON response buffer unavailable");return false;}
+  auto* stream=http.getStreamPtr();
+  const auto now=[](){return millis();};
+  const auto pause=[](){vTaskDelay(pdMS_TO_TICKS(1));};
+  const auto connected=[&](){return http.connected();};
+  transfer::ReadResult result;
+  transfer::JsonBoundary json;
+  if(declared>0){
+    length=size_t(declared);
+    result=transfer::readExact(*stream,reinterpret_cast<uint8_t*>(body.get()),length,now,pause,connected);
+  }else{
+    result=transfer::readBounded(*stream,reinterpret_cast<uint8_t*>(body.get()),capacity,length,now,pause,connected,15000,3000,&json);
+  }
+  http.end();tls.stop();
+  if(result!=transfer::ReadResult::Complete||!length){
+    char detail[128];
+    std::snprintf(detail,sizeof(detail),"JSON response incomplete (read %u bytes, length %d, result %u); retry",unsigned(length),declared,unsigned(result));
+    fail(detail);return false;
+  }
+  body.get()[length]='\0';return true;
+}
+
+bool connectManifestUrl(HTTPClient& http,BoundedTlsClient& tls,String& url,String& expected_version){
+  publish(Phase::Checking,true,false,0,"Checking published Connect releases (including prereleases)");
+  const int code=get(http,tls,String(migration_policy::kConnectReleasesUrl));
+  if(code!=200){http.end();fail(code==403||code==429
+      ?"GitHub release lookup rate limited; try later"
+      :"Connect release lookup failed; retry is available");return false;}
+  Body body(nullptr,heap_caps_free);size_t bytes=0;
+  if(!fetchBody(http,tls,65536,body,bytes))return false;
+  StaticJsonDocument<192> filter;
+  filter[0]["draft"]=true;filter[0]["prerelease"]=true;filter[0]["tag_name"]=true;
+  StaticJsonDocument<2048> releases;
+  if(deserializeJson(releases,static_cast<const char*>(body.get()),bytes,
+      DeserializationOption::Filter(filter)) || releases.overflowed() || !releases.is<JsonArray>()){
+    fail("Connect release list is invalid; Connect is unchanged");return false;
+  }
+  char latest[18]{};
+  if(!migration_policy::selectConnectRelease(releases.as<JsonArrayConst>(),latest)){
+    fail("No compatible Connect release is published");return false;
+  }
+  if(!migration_policy::connectUpgrade(latest,firmware_version::current)){
+    fail("No newer Connect release published; local development builds may be ahead",latest);return false;
+  }
+  expected_version=latest;
+  url=String("https://github.com/")+migration_policy::kConnectRepository+
+      "/releases/download/v"+latest+"/WXLink-Connect-v"+latest+"-manifest.json";
+  return true;
+}
+
 bool readManifest(HTTPClient& http, BoundedTlsClient& tls, String& url,
                   uint32_t slot_bytes, String& version, String& image_url,
                   String& image_sha, uint32_t& image_size) {
-  publish(Phase::Checking, true, false, 0, "Checking the latest WX-Link release");
-  const int code = get(http, tls, String(migration_policy::kManifestUrl));
+  const auto target_product=state().target;
+  String manifest_url=migration_policy::kManifestUrl, expected_version;
+  if(target_product==migration_policy::Target::Connect &&
+      !connectManifestUrl(http,tls,manifest_url,expected_version))return false;
+  publish(Phase::Checking,true,false,0,target_product==migration_policy::Target::Connect
+      ?"Checking Connect update manifest":"Checking the latest WX-Link release");
+  const int code = get(http, tls, manifest_url);
   if (code != 200) {
     http.end();
     char reason[128];
@@ -184,25 +255,8 @@ bool readManifest(HTTPClient& http, BoundedTlsClient& tls, String& url,
     fail(reason);
     return false;
   }
-  const int manifest_bytes = http.getSize();
-  if (manifest_bytes < 1 || manifest_bytes > 4096) {
-    http.end();
-    fail("WX-Link manifest size is invalid; Connect is unchanged");
-    return false;
-  }
-  std::unique_ptr<char, decltype(&heap_caps_free)> body(
-      static_cast<char*>(heap_caps_malloc(size_t(manifest_bytes) + 1,
-          MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)), heap_caps_free);
-  if (!body) { http.end(); fail("Manifest buffer unavailable; Connect is unchanged"); return false; }
-  auto* stream = http.getStreamPtr();
-  const auto read = transfer::readExact(*stream, reinterpret_cast<uint8_t*>(body.get()),
-      size_t(manifest_bytes), [](){return millis();}, [](){vTaskDelay(pdMS_TO_TICKS(1));},
-      [&](){return http.connected();});
-  http.end();
-  if (read != transfer::ReadResult::Complete) {
-    fail("Manifest body timed out or disconnected; retry is available"); return false;
-  }
-  body.get()[manifest_bytes] = '\0';
+  Body body(nullptr,heap_caps_free);size_t manifest_bytes=0;
+  if(!fetchBody(http,tls,4096,body,manifest_bytes))return false;
   StaticJsonDocument<1536> document;
   const DeserializationError parse_error = deserializeJson(document,
       static_cast<const char*>(body.get()), size_t(manifest_bytes));
@@ -221,6 +275,11 @@ bool readManifest(HTTPClient& http, BoundedTlsClient& tls, String& url,
     return false;
   }
   version = document["version"].as<const char*>();
+  if(target_product==migration_policy::Target::Connect &&
+      !migration_policy::connectManifestIdentity(document.as<JsonObjectConst>(),
+          expected_version.c_str(),firmware_version::current)){
+    fail("Connect update identity/version mismatch; Connect is unchanged");return false;
+  }
   image_url = document["firmware_url"] | "";
   image_sha = document["sha256"] | "";
   image_size = document["size"] | uint32_t(0);
@@ -236,8 +295,8 @@ bool readManifest(HTTPClient& http, BoundedTlsClient& tls, String& url,
   const uint32_t slot = target ? target->size : 0;
   if (!target || slot > slot_bytes ||
       !migration_policy::validManifest(manifest,
-                                       ESP.getFlashChipSize(), slot)) {
-    fail("WX-Link release is incompatible or not stable; Connect is unchanged", version.c_str());
+                                       ESP.getFlashChipSize(), slot,target_product)) {
+    fail("Firmware release is incompatible; Connect is unchanged", version.c_str());
     return false;
   }
   image_sha.toLowerCase();
@@ -248,7 +307,8 @@ bool readManifest(HTTPClient& http, BoundedTlsClient& tls, String& url,
 bool downloadAndInstall(HTTPClient& http, BoundedTlsClient& tls, const String& url,
                         const String& version, const String& expected_sha,
                         uint32_t image_size) {
-  publish(Phase::Downloading, true, false, 0, "Downloading and verifying WX-Link", version.c_str());
+  publish(Phase::Downloading,true,false,0,state().target==migration_policy::Target::Connect
+      ?"Downloading and verifying Connect":"Downloading and verifying WX-Link",version.c_str());
   const int code = get(http, tls, url);
   if (code != 200 || http.getSize() != int(image_size)) {
     http.end();
@@ -321,7 +381,8 @@ bool downloadAndInstall(HTTPClient& http, BoundedTlsClient& tls, const String& u
 
   restart_at_ms = millis() + 5000;
   publish(Phase::ReadyToRestart, false, true, 100,
-          "WX-Link verified; restarting in a few seconds", version.c_str());
+          state().target==migration_policy::Target::Connect
+              ?"Connect verified; restarting in a few seconds":"WX-Link verified; restarting in a few seconds", version.c_str());
   return true;
 }
 
@@ -339,6 +400,10 @@ void runMigration() {
   const auto* target = esp_ota_get_next_update_partition(nullptr);
   if (!target || !readManifest(http, tls, manifest_url, target ? target->size : 0,
                                version, image_url, image_sha, image_size)) return;
+  if(!state().install){
+    publish(Phase::Idle,false,false,100,"Release manifest verified over TLS; check only, no installation",version.c_str());
+    return;
+  }
   downloadAndInstall(http, tls, image_url, version, image_sha, image_size);
 }
 
@@ -373,17 +438,19 @@ State state() {
   return copy;
 }
 
-bool request() {
+bool request(migration_policy::Target target, bool install) {
   portENTER_CRITICAL(&state_mux);
   if (!worker_task || !current.worker_ready || current.busy || current.restart_pending) {
     portEXIT_CRITICAL(&state_mux);
     return false;
   }
   current.phase = Phase::Checking;
+  current.target = target;
+  current.install = install;
   current.target_version[0] = '\0';
   current.busy = true;
   current.progress = 0;
-  std::snprintf(current.message, sizeof(current.message), "WX-Link transition queued");
+  std::snprintf(current.message, sizeof(current.message), target==migration_policy::Target::Connect?"Connect update queued":"WX-Link transition queued");
   portEXIT_CRITICAL(&state_mux);
   xTaskNotifyGive(worker_task);
   return true;

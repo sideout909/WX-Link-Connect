@@ -72,6 +72,12 @@ if 'xTaskCreatePinnedToCore(worker, "wx-main-transition",\n      16384' not in m
     raise SystemExit("FAIL: migration must run in its dedicated 16 KiB worker")
 if "setInsecure" in migration or "migration_policy::kManifestUrl" not in migration:
     raise SystemExit("FAIL: migration must use the fixed HTTPS manifest and certificate validation")
+if "setCACertBundle" in migration or "connect(ip, port, host, kGithubRoots, nullptr, nullptr)" not in migration:
+    raise SystemExit("FAIL: migration must pass explicit public roots to the resolved-IP/hostname TLS overload")
+if "if(!state().install)" not in migration or migration.index("if(!state().install)") > migration.index("  downloadAndInstall(http,"):
+    raise SystemExit("FAIL: USB check-only mode must return before image download/installation")
+if "LoopBuffers* loop_buffers" not in source or "MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT" not in source:
+    raise SystemExit("FAIL: loop packet/export buffers must retain the fixed PSRAM allocation")
 migration_usage = {}
 for line in MIGRATION_SU.read_text().splitlines():
     match = re.search(r"\b(\d+)\s+(?:static|dynamic)(?:\s|$)", line)

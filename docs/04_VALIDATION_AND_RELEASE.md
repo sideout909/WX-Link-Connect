@@ -21,8 +21,8 @@ must stay labeled synthetic in files, preview and manifest.
 
 Use a spare unit or explicitly owner-authorized test unit after milestone 1.
 Before flashing, confirm independent capture identity/NVS and no enabled path to
-APRS, CWOP, WU, Weathercloud, NWS, or a generic/automatic updater. The sole OTA
-exception is the user-confirmed fixed-target Connect-to-WX-Link transition. Connect
+APRS, CWOP, WU, Weathercloud, NWS, or a generic/automatic updater. The OTA
+exceptions are the user-confirmed fixed-target Connect update and Connect-to-WX-Link transition. Connect
 settings stay isolated and are not copied to the main `wxlink` namespace. Preserve
 electrical wiring and baseline receiver settings.
 
@@ -90,7 +90,7 @@ hardware acceptance remains pending. The prerelease is explicitly not hardware-
 accepted or a validated production release. Its firmware asset is application-image-
 only and includes no bootloader, partition table, NVS image, credentials or
 participant captures. Publishing version 0.1.0 does not mark M12 complete.
-The main-project transition downloads only a newer compatible release from the fixed
+The main-project transition downloads a compatible stable main-project release from the fixed
 `sideout909/WX-Link` repository. HTTPS plus the release manifest hash validate the
 download; there is no independent publisher signature. Hardware/RF acceptance and
 device flashing remain pending.

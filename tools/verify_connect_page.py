@@ -90,9 +90,12 @@ def main():
         elif path in ("/api/connect/preview", "/api/connect/start", "/api/connect/stop",
                       "/api/connect/heartbeat",
                       "/api/connect/raw-window", "/api/connect/delete",
-                      "/api/connect/switch-to-wx-link"):
+                      "/api/connect/switch-to-wx-link", "/api/connect/update"):
             assert request.headers["x-csrf-token"] == "a" * 32
             calls.append((path, request.post_data_json))
+            if path == "/api/connect/update":
+                assert request.post_data_json == {"confirmation": "UPDATE CONNECT"}
+                status["main_transition"].update(target="connect", busy=True, progress=0, message="Connect update queued")
             if path.endswith("switch-to-wx-link"):
                 assert request.post_data_json == {"confirmation": "SWITCH TO WX-LINK"}
                 status["main_transition"].update(busy=True, progress=0,
@@ -127,6 +130,11 @@ def main():
         page.route("**/*", route)
         page.goto("http://wxconnect.test/", wait_until="domcontentloaded")
         page.locator("#identity").wait_for()
+        assert page.locator("#link").evaluate("e=>getComputedStyle(e).color") == "rgb(255, 165, 0)"
+        status["wifi"] = True
+        page.evaluate("async()=>{while(refreshBusy)await new Promise(r=>setTimeout(r,10));await refresh()}")
+        assert page.locator("#link").inner_text() == "Home Wi-Fi"
+        assert "setup" not in page.locator("#link").get_attribute("class")
         assert page.locator("#identity").inner_text() == identity + " · Unknown · ID <b>sensor</b>"
         assert page.locator("img").count() == 0
         assert page.locator("#temperature").inner_text() == "32.0 °F"
@@ -137,15 +145,15 @@ def main():
         page.get_by_role("button", name="Capture").click()
         # Storage and retained-session blockers must be actionable, not a silent disabled button.
         status.update(storage_ready=False, capture_start_blocker="Capture storage is unavailable; check storage status. No data was erased.", storage_message="Capture directory unavailable")
-        page.evaluate("refresh()")
+        page.evaluate("async()=>{while(refreshBusy)await new Promise(r=>setTimeout(r,10));await refresh()}")
         assert page.locator("#start").is_disabled()
         assert "unavailable" in page.locator("#capture-readiness").inner_text()
         assert page.locator("#storage-status").inner_text() == "Capture directory unavailable"
         status.update(storage_ready=True, capture_start_blocker="Eight sessions retained. Export and delete a Connect session to start another.")
-        page.evaluate("refresh()")
+        page.evaluate("async()=>{while(refreshBusy)await new Promise(r=>setTimeout(r,10));await refresh()}")
         assert "Export and delete" in page.locator("#capture-readiness").inner_text()
         status.update(capture_start_blocker=None)
-        page.evaluate("refresh()")
+        page.evaluate("async()=>{while(refreshBusy)await new Promise(r=>setTimeout(r,10));await refresh()}")
         capture_failure["value"] = True
         page.locator("#start").click()
         page.wait_for_function("document.querySelector('#capture-feedback').textContent.includes('could not be opened')")
@@ -158,10 +166,10 @@ def main():
         page.locator("#stop").click()
         # Legacy browser lease handling is still supported without assigning it to new starts.
         status.update(active=True,capture_owner="browser",session_id=SESSION)
-        page.evaluate("refresh()")
+        page.evaluate("async()=>{while(refreshBusy)await new Promise(r=>setTimeout(r,10));await refresh()}")
         page.evaluate("heartbeat()")
         status.update(active=False,capture_owner="none",session_id=None)
-        page.evaluate("refresh()")
+        page.evaluate("async()=>{while(refreshBusy)await new Promise(r=>setTimeout(r,10));await refresh()}")
         with page.expect_download():
             page.get_by_role("button", name="Download decoded").click()
         page.get_by_role("button", name="Delete").click()
@@ -169,7 +177,7 @@ def main():
         assert identity in page.locator("#live-packet").inner_text()
         assert page.locator("img").count() == 0
         status.update(active=True, capture_owner="device")
-        page.evaluate("refresh()")
+        page.evaluate("async()=>{while(refreshBusy)await new Promise(r=>setTimeout(r,10));await refresh()}")
         assert page.locator("#stop").is_enabled()
         assert page.locator("#start").is_disabled()
         page.locator("#stop").click()
@@ -207,8 +215,29 @@ def main():
         page.reload(wait_until="domcontentloaded")
         page.get_by_role("button", name="Setup").click()
         page.wait_for_function("document.querySelector('#wifi-networks').options.length===3")
+        page.locator("#update-connect").click()
+        page.wait_for_function("document.querySelector('#switch-state').textContent.includes('Connect update queued')")
+        assert page.locator("#switch-main").is_disabled()
+        assert page.locator("#update-connect").is_disabled()
+        status["main_transition"].update(target="main",busy=False,message="Retry is available")
+        page.evaluate("async()=>{while(refreshBusy)await new Promise(r=>setTimeout(r,10));await refresh()}")
         page.locator("#switch-main").click()
         page.wait_for_function("document.querySelector('#switch-state').textContent.includes('queued')")
+        # A hung fetch must time out without piling up concurrent status polls.
+        hang = page.evaluate("""async()=>{
+          while(refreshBusy)await new Promise(r=>setTimeout(r,10));
+          const original=window.fetch;let requests=0;firmwareBusy=true;
+          window.fetch=(path,options)=>new Promise((resolve,reject)=>{
+            if(path==='/api/connect/status')requests++;
+            options.signal.addEventListener('abort',()=>reject(new DOMException('Aborted','AbortError')));
+          });
+          try{await Promise.all([refresh(),refresh()]);return {requests,
+            message:document.querySelector('#switch-state').textContent,
+            busy:refreshBusy};}
+          finally{window.fetch=original;firmwareBusy=false;}
+        }""")
+        assert hang["requests"] == 1, hang
+        assert not hang["busy"] and "Leave it powered on" in hang["message"], hang
         assert not errors, errors
         assert any(path == "/api/connect/raw-window" and data["duration_ms"] == 1000
                    for path, data in calls if data)

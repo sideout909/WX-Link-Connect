@@ -35,8 +35,10 @@ class ConnectPageTests(unittest.TestCase):
         self.assertIn("/api/connect/heartbeat", self.html)
         self.assertIn("/api/connect/export?", self.html)
         self.assertIn("/api/connect/switch-to-wx-link", self.html)
+        self.assertIn("/api/connect/update", self.html)
+        self.assertIn("UPDATE CONNECT", self.html)
         for removed in ("/api/update", "/api/sharing", "/api/forecast", "/api/archive",
-                        "Weather Underground", "APRS / CWOP", "Firmware updates"):
+                        "Weather Underground", "APRS / CWOP"):
             self.assertNotIn(removed, self.html)
 
     def test_rf_identity_is_rendered_as_text(self):

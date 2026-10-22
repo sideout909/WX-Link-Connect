@@ -35,3 +35,45 @@ The manifest hash checks image integrity against the manifest fetched over HTTPS
 Host checks cover fixed repository and asset paths, version ordering, board/partition/flash mismatch, slot size, malformed hashes, redirect-host rejection and compiled exclusion of the legacy exporter and generic updater. The project build and synthetic browser test cover compilation and the confirmation path. They do not execute a real HTTPS transition or establish hardware rollback, power-loss recovery, NVS/filesystem retention, station operation, RF performance or user-interface behavior on the display. Those checks remain part of M12 device acceptance.
 
 No main WX-Link source or release was modified for this feature. The main release's own boot-confirmation and rollback behavior remains controlled by that firmware.
+
+
+## Manual Connect updates (owner-authorized in 0.1.5-dev)
+
+Setup now also has **Update Connect from GitHub**. This is separate from switching
+to the main weather firmware. It requires authentication, same-origin/CSRF checks,
+explicit confirmation, stopped/flushed recording, Wi-Fi and valid time. It never
+runs in the background. The fixed repository is `sideout909/WX-Link-Connect`.
+The device fetches the five most recently published releases from GitHub's API,
+ignores drafts and nonnumeric tags, and selects the highest numeric version.
+Numeric tags marked as experimental prereleases are included. Only a newer
+Connect version can install; a matching numeric release may replace its own
+`-dev` build. Connect/main release numbers are never compared to each other.
+No GitHub credentials or participant accounts are needed.
+
+Future numeric Connect releases must include these exact OTA asset names:
+`WXLink-Connect-vX.Y.Z-manifest.json` and `WXLink-Connect-vX.Y.Z.bin`.
+The manifest is schema 1 with product/repository, numeric version, board,
+partition_layout, flash_bytes, size, SHA256 and the fixed repository/tag image URL.
+The earlier v0.1.1 manifest predates this contract and is not an upgrade candidate
+for 0.1.5-dev. No new release has been published in this task.
+
+Prepare a future numeric build locally with
+`python3 tools/package-connect-update.py --version X.Y.Z --output dist/connect-update`.
+The packager checks embedded product/version/repository and ESP32-S3 image headers.
+It refuses a stale or `-dev` image passed off as a numeric release and never pushes.
+After review, publishing those assets is a separate owner-authorized step.
+
+Both update paths use normal mbedTLS verification with explicit trusted public
+CA roots, including hostname/SNI checks. Their browser polls cannot overlap and
+requests time out after eight seconds, including reading the response body.
+Latest-packet polling pauses while firmware work runs. A disconnected page warns
+to leave the device powered and reconnect to determine the outcome; it does not
+pretend an installation succeeded. API JSON bodies are bounded to 64 KiB for the
+release list and 4 KiB for the manifest, including HTTP/1.0 close-delimited bodies.
+
+For diagnosis, USB `firmware_check` with target `main` or `connect` runs a bounded
+manifest lookup **without image installation**, requiring the same Wi-Fi/time and
+inactive-capture conditions. USB `status` includes `firmware_update` status.
+The device has verified the main release manifest over TLS and queried Connect
+releases with this check-only mode. Image installation, target boot and rollback
+acceptance are still pending; see [0.1.5 evidence](UPDATE_AND_DISPLAY_0.1.5.md).

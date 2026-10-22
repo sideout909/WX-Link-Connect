@@ -8,7 +8,8 @@ ESP32-S3 N8R2 and receive-only 433 MHz CC1101. A browser downloads captures; a P
 USB logger is an alternative. It is not a desktop-only program, hosted website,
 cloud database, new production weather decoder or generic SDR application. If the
 owner changes this interpretation, update this scope before coding. The owner has
-authorized one deliberate, one-way OTA transition from Connect to the main
+authorized manual Connect updates from its fixed GitHub repository, plus one
+deliberate, one-way OTA transition from Connect to the main
 `sideout909/WX-Link` application after station support is published there.
 
 ## Definition of a completed first release
@@ -79,7 +80,8 @@ packet RSSI. Record requested/applied settings separately; unknown readback is n
 No automatic community upload, backend, accounts, APRS/CWOP/WU/Weathercloud, NWS,
 generic or automatic OTA, weather-station binding, full-day rain claim, all-band
 sweep, arbitrary register UI, transmit/replay-to-air or SD requirement. The only
-Connect OTA path is the protected, typed-confirmation transition to the fixed main
+Connect OTA paths are a protected, confirmed update from the fixed Connect repository
+and the typed-confirmation transition to the fixed main
 WX-Link release repository; it checks the SC05_X board/partition, stable main release version,
 image header and manifest SHA-256, and writes only the inactive application slot.
 Connect and main release numbers are independent and are not compared.

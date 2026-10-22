@@ -25,5 +25,21 @@ int main(){
   assert(readExact(trickle,bytes,4,now,[&](){clock+=9;},online,20,10)==ReadResult::Timeout);
   clock=UINT32_MAX-3;Stream wrap{{1,2,3,4}};
   assert(readExact(wrap,bytes,4,now,pause,online)==ReadResult::Complete);
+  Stream close_body{{1,2,3,4}};clock=0;size_t length=0;
+  assert(readBounded(close_body,bytes,4,length,now,pause,[&](){return close_body.at<close_body.bytes.size();})==ReadResult::Complete && length==4);
+  Stream too_big{{1,2,3,4,5}};clock=0;
+  assert(readBounded(too_big,bytes,4,length,now,pause,online)==ReadResult::Oversize);
+  clock=0;assert(readBounded(empty,bytes,4,length,now,pause,online,20,10)==ReadResult::Timeout);
+  const char json_text[]=R"JSON([{"escaped":"}\\\"[","array":[1,2]}])JSON";
+  Stream json_stream;json_stream.bytes.assign(json_text,json_text+std::strlen(json_text));clock=0;
+  std::vector<uint8_t> json_output(256);JsonBoundary boundary;
+  assert(readBounded(json_stream,json_output.data(),json_output.size(),length,now,pause,online,1000,100,&boundary)==ReadResult::Complete);
+  assert(boundary.complete&&length==std::strlen(json_text)); // Peer never closes.
+  JsonBoundary escaped;const char quoted[]=R"JSON({"text":"}\"["})JSON";
+  assert(escaped.append(reinterpret_cast<const uint8_t*>(quoted),std::strlen(quoted))&&escaped.complete);
+  JsonBoundary truncated;const uint8_t prefix[]={'[','{'};
+  assert(truncated.append(prefix,2)&&!truncated.complete);
+  JsonBoundary trailing;const uint8_t extra[]={'[',']','x'};
+  assert(!trailing.append(extra,3));
   std::cout<<"Transfer checks passed: split headers, total/idle deadline, closed streams, rollover, late DNS callbacks\n";
 }

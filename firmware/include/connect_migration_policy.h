@@ -9,6 +9,10 @@
 
 namespace wxconnect::migration_policy {
 
+enum class Target : uint8_t { Main, Connect };
+constexpr const char* kConnectRepository = "sideout909/WX-Link-Connect";
+constexpr const char* kConnectReleasesUrl =
+    "https://api.github.com/repos/sideout909/WX-Link-Connect/releases?per_page=5";
 constexpr const char* kRepository = "sideout909/WX-Link";
 constexpr const char* kBoard = "panellan_sc05_x";
 constexpr const char* kPartitionLayout = "default_8MB-v1";
@@ -55,14 +59,28 @@ inline bool sha256(const char* value) {
   return true;
 }
 
-inline bool firmwareUrl(const char* value, const char* version_text) {
+inline bool connectUpgrade(const char* target, const char* current) {
+  std::array<unsigned,3> next{}, running{};
+  if (!version(target,next) || !current || std::strlen(current)>=32) return false;
+  char base[32]; std::strcpy(base,current);
+  char* suffix=std::strchr(base,'-');
+  const bool development=suffix && !std::strcmp(suffix,"-dev");
+  if (suffix) { if (!development) return false; *suffix='\0'; }
+  return version(base,running) && (next>running || (development && next==running));
+}
+inline bool firmwareUrl(const char* value, const char* version_text,
+                        Target target=Target::Main) {
   if (!value || !version_text || std::strlen(value) >= 1024) return false;
   std::array<unsigned, 3> parts{};
   if (!version(version_text, parts)) return false;
   char expected[192];
-  const int length = std::snprintf(expected, sizeof(expected),
-      "https://github.com/%s/releases/download/v%s/%s",
-      kRepository, version_text, kFirmwareName);
+  const int length = target==Target::Connect
+      ? std::snprintf(expected,sizeof(expected),
+          "https://github.com/%s/releases/download/v%s/WXLink-Connect-v%s.bin",
+          kConnectRepository,version_text,version_text)
+      : std::snprintf(expected, sizeof(expected),
+          "https://github.com/%s/releases/download/v%s/%s",
+          kRepository, version_text, kFirmwareName);
   return length > 0 && size_t(length) < sizeof(expected) &&
          std::strcmp(value, expected) == 0;
 }
@@ -71,6 +89,7 @@ inline bool downloadHost(const char* value) {
   if (!value || std::strpbrk(value, "\r\n") || std::strlen(value) >= 2048) return false;
   for (const char* prefix : {
            "https://github.com/",
+           "https://api.github.com/",
            "https://release-assets.githubusercontent.com/",
            "https://objects.githubusercontent.com/",
            "https://github-releases.githubusercontent.com/"}) {
@@ -80,7 +99,8 @@ inline bool downloadHost(const char* value) {
 }
 
 inline bool validManifest(const Manifest& manifest,
-                          uint32_t expected_flash_bytes, uint32_t update_slot_bytes) {
+                          uint32_t expected_flash_bytes, uint32_t update_slot_bytes,
+                          Target target=Target::Main) {
   std::array<unsigned, 3> target_version{};
   // Connect and WX-Link are different products. Their release numbers cannot
   // be compared as an in-product upgrade/downgrade check. Only stable, numeric
@@ -90,7 +110,7 @@ inline bool validManifest(const Manifest& manifest,
          std::strcmp(manifest.partition_layout, kPartitionLayout) == 0 &&
          manifest.flash_bytes == expected_flash_bytes && manifest.size >= 32768 &&
          manifest.size <= update_slot_bytes && version(manifest.version, target_version) &&
-         sha256(manifest.sha256) && firmwareUrl(manifest.firmware_url, manifest.version);
+         sha256(manifest.sha256) && firmwareUrl(manifest.firmware_url, manifest.version,target);
 }
 
 }  // namespace wxconnect::migration_policy

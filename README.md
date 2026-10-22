@@ -45,7 +45,7 @@ bundle manually; no automatic submission exists.
 
 See [software status](docs/RELEASE_STATUS.md) for exact checks, build size and remaining
 hardware acceptance tasks, and the [wishlist](docs/WISHLIST.md) for future ideas.
-The current source is **0.1.4-dev**, a local-only software audit candidate with non-Atlas preview, bounded transfer and capture fixes. It has not been flashed or pushed. See [public replay evidence and remaining checks](docs/DEEP_AUDIT_0.1.4.md). See [current evidence and remaining checks](docs/RELEASE_STATUS.md) and the [small UI handoff](docs/SMALL_UI_TODO.md). It has not been published.
+The current source is **0.1.5-dev**, a local test candidate with explicit Connect updates, TLS/memory fixes and Home glyph corrections. See [the current investigation](docs/UPDATE_AND_DISPLAY_0.1.5.md) for device evidence and limits. No new release has been published. See [public replay evidence and remaining checks](docs/DEEP_AUDIT_0.1.4.md). See [current evidence and remaining checks](docs/RELEASE_STATUS.md) and the [small UI handoff](docs/SMALL_UI_TODO.md). It has not been published.
 
 The previous source built a local **0.1.2 test candidate** with Atlas preview and
 capture-start fixes; see [the investigation](docs/REVIEW_0.1.2.md). It has been clean-installed for initial owner testing and has not been

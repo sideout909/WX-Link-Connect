@@ -52,6 +52,7 @@ SET_LOOP_TASK_STACK_SIZE(24 * 1024);
 namespace {
 constexpr const char* kVersion = firmware_version::display;
 constexpr uint16_t rgb565(unsigned r,unsigned g,unsigned b){return ((r&248)<<8)|((g&252)<<3)|(b>>3);}
+constexpr uint16_t kSetupOrange=rgb565(255,165,0);
 uint16_t kWhite=rgb565(240,245,251),kAmber=0xfd20;
 const char* active_theme="midnight";
 uint16_t kBackground,kCard,kMuted,kCyan,kDivider,kGreen,kAlertCard,kAlertBorder;
@@ -86,9 +87,14 @@ wxconnect::preview::Adapter preview_adapter;
 bool preview_explicit=false;
 using CaptureOwner=wxconnect::capture::CaptureLease::Owner;
 wxconnect::capture::CaptureLease capture_lease;
-char capture_json_output[wxconnect::capture::kWorstCaseEscapedNativeBytes+512];
-char radio_packet_copy[radio_receiver::kDecodedBufferBytes];
-char capture_read_buffer[16384];
+// Loop-owned copies are never used in an ISR. Put them in the fixed PSRAM
+// pool so certificate verification and the web server retain internal RAM.
+struct LoopBuffers {
+  char capture_json_output[wxconnect::capture::kWorstCaseEscapedNativeBytes+512];
+  char radio_packet_copy[radio_receiver::kDecodedBufferBytes];
+  char capture_read_buffer[16384];
+};
+LoopBuffers* loop_buffers=nullptr;
 // These large records are reused by the single Arduino loop task. Keeping them
 // static avoids multi-kilobyte automatic frames in radio and web call chains.
 wxconnect::capture::Record capture_record_scratch;
@@ -501,26 +507,32 @@ void draw() {
   auto fresh=[&](const wxconnect::preview::Value& field){return field.valid&&now>=field.time_ms&&now-field.time_ms<60000;};
   const String device=preview.selected
       ? String(preview.identity.has_model?preview.identity.model.data():"Unknown decoder")+
-          (preview.identity.has_id?" · "+String(preview.identity.id.data()):" · identity incomplete")+
-          (preview.identity.has_channel?" · "+String(preview.identity.channel.data()):String())
+          (preview.identity.has_id?" / "+String(preview.identity.id.data()):" / identity incomplete")+
+          (preview.identity.has_channel?" / "+String(preview.identity.channel.data()):String())
       : String("Waiting for a decoded device");
   text("WX CONNECT",10,7,kCyan,&fonts::Font2);
   text(radio_receiver::ready()?"RF +":"RF --",204,9,radio_receiver::ready()?kGreen:kAmber,&fonts::Font0);
-  text(network.wifi?"WiFi +":"WiFi setup",247,9,network.wifi?kGreen:kMuted,&fonts::Font0);
+  text(network.wifi?"WiFi +":"WiFi setup",247,9,network.wifi?kGreen:kSetupOrange,&fonts::Font0);
   text(device.substring(0,42),10,26,preview.selected?kWhite:kMuted,&fonts::Font0);
   canvas.drawFastHLine(10,41,300,kDivider);
 
   const auto& temperature=preview.temperature_c;
   const String temperature_f=temperature.valid?String(temperature.value*9.0/5.0+32.0,1):String("--");
-  text("OUTDOOR °F",10,50,kMuted,&fonts::Font0);
+  // Font0's extended glyph slots are not Unicode degree/separator glyphs.
+  // Draw degrees geometrically and keep its strings within printable ASCII.
+  text("OUTDOOR",10,50,kMuted,&fonts::Font0);
+  canvas.drawCircle(60,52,1,kMuted);text("F",64,50,kMuted,&fonts::Font0);
   text(temperature_f,8,65,fresh(temperature)?kWhite:temperature.valid?kAmber:kMuted,&fonts::Font4);
   const auto& wind=preview.wind_mph;
   const String wind_text=wind.valid?String(wind.value,1):String("--");
   text("WIND",191,50,kMuted,&fonts::Font0);
   text(wind_text,190,65,fresh(wind)?kWhite:wind.valid?kAmber:kMuted,&fonts::Font4);
   const String direction=preview.wind_direction_deg.valid
-      ? String(preview.wind_direction_deg.value,0)+"°":"--";
-  text("mph · "+direction,192,101,kMuted,&fonts::Font0);
+      ? String(preview.wind_direction_deg.value,0):"--";
+  const String wind_label="mph / "+direction;
+  text(wind_label,192,101,kMuted,&fonts::Font0);
+  if(preview.wind_direction_deg.valid)
+    canvas.drawCircle(192+canvas.textWidth(wind_label)+2,103,1,kMuted);
   const auto& humidity=preview.humidity_pct;
   const String humidity_text=humidity.valid?String(humidity.value,0):String("--");
   const auto& rain=preview.rain_counter;
@@ -549,10 +561,10 @@ void draw() {
   text("UV "+(uv.valid?String(uv.value,1):String("--")),166,178,fresh(uv)?kMuted:kAmber,&fonts::Font0);
   canvas.fillRoundRect(8,195,304,38,5,kCard);
   const String capture_label=capture_session.active()?String("RECORDING"):
-      std::strcmp(capture_stop_reason,"none")?"STOPPED · "+String(capture_stop_reason):String("RECEIVING");
+      std::strcmp(capture_stop_reason,"none")?"STOPPED / "+String(capture_stop_reason):String("RECEIVING");
   text(capture_label,15,200,capture_session.active()?kGreen:kCyan,&fonts::Font0);
-  text("Decoded "+String(static_cast<unsigned long>(live_packets.received))+" · all enabled decoders",15,215,kMuted,&fonts::Font0);
-  if(preview.selected&&!preview.adapter_available)text("No weather adapter · raw packets retained",15,185,kAmber,&fonts::Font0);
+  text("Decoded "+String(static_cast<unsigned long>(live_packets.received))+" - all enabled decoders",15,215,kMuted,&fonts::Font0);
+  if(preview.selected&&!preview.adapter_available)text("No weather adapter / raw packets retained",15,185,kAmber,&fonts::Font0);
   (void)selected_packets;
   canvas.pushSprite(0,0);
   dirty=false;last_draw=uptimeMs();
@@ -612,6 +624,11 @@ void status(const char* event = "status") {
   out["largest_internal_block"]=heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   out["free_heap"]=ESP.getFreeHeap();out["loop_stack_free"]=uxTaskGetStackHighWaterMark(nullptr);out["free_psram"]=ESP.getFreePsram();
   out["uptime_ms"]=uptimeMs();out["source"]=replay?"usb_replay":store->accepted?"radio":"none";
+  const auto update=wxconnect::connect_migration::state();
+  JsonObject update_status=out.createNestedObject("firmware_update");
+  update_status["target"]=update.target==wxconnect::migration_policy::Target::Connect?"connect":"main";
+  update_status["install"]=update.install;update_status["busy"]=update.busy;update_status["restart_pending"]=update.restart_pending;
+  update_status["progress"]=update.progress;update_status["message"]=update.message;
   out["radio_ready"]=radio_receiver::ready();out["radio_dropped"]=radio_receiver::dropped();
   out["wifi"]=network.wifi;out["clock_valid"]=services::clockValid();out["setup_ip"]=services::portalAddress();out["local_url"]=services::portalUrl();out["mdns_ready"]=services::localNameReady();
   out["checkpoint_restored"]=checkpoint_restored;out["setup_open"]=setup_open;
@@ -640,9 +657,9 @@ void status(const char* event = "status") {
   Serial.write(reinterpret_cast<const uint8_t*>(buffer),length);Serial.println();
 }
 bool writeCaptureRecord(const wxconnect::capture::Record& record) {
-  const size_t used=wxconnect::capture::encodeJsonl(record,capture_json_output,sizeof(capture_json_output));
+  const size_t used=wxconnect::capture::encodeJsonl(record,loop_buffers->capture_json_output,sizeof(loop_buffers->capture_json_output));
   if(capture_lease.owner()==CaptureOwner::Usb &&
-     (!used||Serial.write(reinterpret_cast<const uint8_t*>(capture_json_output),used)!=used))
+     (!used||Serial.write(reinterpret_cast<const uint8_t*>(loop_buffers->capture_json_output),used)!=used))
     capture_session.transportDrop();
   if(!used){
     capture_stop_reason="storage_write_failed";
@@ -650,7 +667,7 @@ bool writeCaptureRecord(const wxconnect::capture::Record& record) {
     wxconnect::capture::storage::finish();capture_lease.clear();return false;
   }
   capture_stop_reason="none";
-  return wxconnect::capture::appendOrStop(capture_session,record.event,capture_json_output,used,
+  return wxconnect::capture::appendOrStop(capture_session,record.event,loop_buffers->capture_json_output,used,
       [](wxconnect::capture::Event event,const char* bytes,size_t length){
         return wxconnect::capture::storage::append(event,bytes,length);
       },[](){
@@ -770,6 +787,16 @@ void command(const char* input) {
       Serial.printf("{\"event\":\"capture_control\",\"request_id\":%u,\"ok\":%s,\"storage_flushed\":%s}\n",request_id,saved?"true":"false",saved?"true":"false");
     } else Serial.printf("{\"event\":\"capture_control\",\"request_id\":%u,\"ok\":false,\"reason\":\"not_recording_or_queue_pending\"}\n",request_id);
   }
+  else if (!strcmp(op,"firmware_check")) {
+    const char* target=doc["target"]|"";
+    const bool valid=!strcmp(target,"main")||!strcmp(target,"connect");
+    const bool ready=valid&&!capture_session.active()&&capture_lease.owner()==CaptureOwner::None&&
+        !wxconnect::capture::storage::state().active&&!radio_receiver::rawWindowActive()&&
+        strcmp(services::wifiScan().state,"running")&&WiFi.status()==WL_CONNECTED&&services::clockValid();
+    const bool queued=ready&&wxconnect::connect_migration::request(!strcmp(target,"connect")
+        ?wxconnect::migration_policy::Target::Connect:wxconnect::migration_policy::Target::Main,false);
+    Serial.printf("{\"event\":\"firmware_check\",\"request_id\":%u,\"queued\":%s,\"install\":false}\n",request_id,queued?"true":"false");
+  }
   else if (!strcmp(op,"status")) status();
   else if(!strcmp(op,"capture_keepalive")){
     const bool active=capture_session.active()&&capture_lease.heartbeat(CaptureOwner::Usb,uptimeMs());
@@ -815,8 +842,8 @@ void command(const char* input) {
     size_t length=0;uint32_t next_offset=0;
     const uint32_t offset=doc["offset"]|uint32_t(0);
     const bool found=valid_stream&&wxconnect::capture::storage::readRecord(session_id,pulses,offset,
-        capture_read_buffer,sizeof(capture_read_buffer),length,next_offset);
-    if(found){Serial.write(reinterpret_cast<const uint8_t*>(capture_read_buffer),length);}
+        loop_buffers->capture_read_buffer,sizeof(loop_buffers->capture_read_buffer),length,next_offset);
+    if(found){Serial.write(reinterpret_cast<const uint8_t*>(loop_buffers->capture_read_buffer),length);}
     Serial.printf("{\"event\":\"capture_read\",\"request_id\":%u,\"ok\":%s,\"stream\":\"%s\",\"offset\":%u,\"next_offset\":%u,\"done\":%s}\n",
         request_id,found?"true":"false",pulses?"pulses":"decoded",offset,next_offset,
         found&&next_offset<([&](){for(const auto& info:wxconnect::capture::storage::sessions())if(info.occupied&&!strcmp(info.id.data(),session_id))return pulses?info.pulse_valid_bytes:info.decoded_valid_bytes;return uint32_t(0);}())?"false":"true");
@@ -1024,6 +1051,7 @@ void connectStatusRoute(){
   document["stored_sessions"]=storage.sessions;document["max_sessions"]=wxconnect::capture::storage::kSessionLimit;
   const auto transition=wxconnect::connect_migration::state();
   JsonObject main_transition=document.createNestedObject("main_transition");
+  main_transition["target"]=transition.target==wxconnect::migration_policy::Target::Connect?"connect":"main";
   main_transition["worker_ready"]=transition.worker_ready;main_transition["busy"]=transition.busy;
   main_transition["restart_pending"]=transition.restart_pending;main_transition["progress"]=transition.progress;
   main_transition["phase"]=transition.phase==wxconnect::connect_migration::Phase::Checking?"checking":
@@ -1210,16 +1238,16 @@ void exportRoute(){
   end=nullptr;const unsigned long revision=strtoul(revision_text.c_str(),&end,10);
   if(!end||*end||revision>UINT32_MAX||parsed>=revision){sendApiError(400,"invalid_revision_or_offset");return;}
   const bool pulse_stream=stream=="pulses";size_t length=0;uint32_t next=0;
-  if(!wxconnect::capture::storage::readRecord(id.c_str(),pulse_stream,uint32_t(parsed),capture_read_buffer,sizeof(capture_read_buffer)-1,length,next)){
+  if(!wxconnect::capture::storage::readRecord(id.c_str(),pulse_stream,uint32_t(parsed),loop_buffers->capture_read_buffer,sizeof(loop_buffers->capture_read_buffer)-1,length,next)){
     sendApiError(404,"record_unavailable");return;
   }
-  capture_read_buffer[length]='\0';uint32_t valid=0;
+  loop_buffers->capture_read_buffer[length]='\0';uint32_t valid=0;
   for(const auto& info:wxconnect::capture::storage::sessions())if(info.occupied&&id==info.id.data())valid=pulse_stream?info.pulse_valid_bytes:info.decoded_valid_bytes;
   if(revision>valid){sendApiError(409,"stream_revision_changed");return;}
   web_server.sendHeader("Cache-Control","no-store");web_server.sendHeader("X-Content-Type-Options","nosniff");
   web_server.sendHeader("X-Next-Offset",String(next));web_server.sendHeader("X-Stream-Revision",String(revision));
   web_server.sendHeader("X-Session-Done",next>=revision?"true":"false");
-  web_server.send(200,"application/x-ndjson",capture_read_buffer);
+  web_server.send(200,"application/x-ndjson",loop_buffers->capture_read_buffer);
 }
 void captureDeleteRoute(){
   if(!authorizeWeb(true))return;StaticJsonDocument<128> request;
@@ -1259,13 +1287,13 @@ void rawWindowRoute(){
   if(!started){sendApiError(400,"raw_window_not_started");return;}
   StaticJsonDocument<64> response;response["ok"]=true;response["duration_ms"]=duration;sendJson(response,202);
 }
-void switchToMainRoute(){
+void firmwareUpdateRoute(bool connect_update){
   if(!authorizeWeb(true))return;
   if(!std::strcmp(services::wifiScan().state,"running")){sendApiError(409,"wait_for_wifi_scan");return;}
   StaticJsonDocument<128> request;
   if(deserializeJson(request,web_server.arg("plain"))||!request.is<JsonObject>()||
      !request["confirmation"].is<const char*>()||
-     std::strcmp(request["confirmation"].as<const char*>(),"SWITCH TO WX-LINK")){
+     std::strcmp(request["confirmation"].as<const char*>(),connect_update?"UPDATE CONNECT":"SWITCH TO WX-LINK")){
     sendApiError(400,"explicit_switch_confirmation_required");return;
   }
   if(capture_session.active()||capture_lease.owner()!=CaptureOwner::None||
@@ -1275,12 +1303,14 @@ void switchToMainRoute(){
   if(WiFi.status()!=WL_CONNECTED||!services::clockValid()){
     sendApiError(409,"home_wifi_and_valid_time_required");return;
   }
-  if(!wxconnect::connect_migration::request()){
+  if(!wxconnect::connect_migration::request(connect_update?wxconnect::migration_policy::Target::Connect:wxconnect::migration_policy::Target::Main)){
     sendApiError(409,"firmware_transition_unavailable_or_busy");return;
   }
   StaticJsonDocument<128> response;response["ok"]=true;
-  response["message"]="WX-Link release check queued";sendJson(response,202);
+  response["message"]=connect_update?"Connect update check queued":"WX-Link release check queued";sendJson(response,202);
 }
+void switchToMainRoute(){firmwareUpdateRoute(false);}
+void updateConnectRoute(){firmwareUpdateRoute(true);}
 void beginWebServer(){
   rotateCsrf();const char* headers[]={"Origin","X-CSRF-Token"};web_server.collectHeaders(headers,2);
   web_server.on("/",HTTP_GET,[]{if(!authorizeWeb())return;web_server.sendHeader("Cache-Control","no-store");web_server.send_P(200,"text/html; charset=utf-8",kSetupPage);});
@@ -1295,6 +1325,7 @@ void beginWebServer(){
   web_server.on("/api/connect/raw-window",HTTP_POST,rawWindowRoute);web_server.on("/api/connect/preview",HTTP_POST,previewRoute);
   web_server.on("/api/connect/delete",HTTP_POST,captureDeleteRoute);
   web_server.on("/api/connect/switch-to-wx-link",HTTP_POST,switchToMainRoute);
+  web_server.on("/api/connect/update",HTTP_POST,updateConnectRoute);
   web_server.onNotFound([]{web_server.sendHeader("Cache-Control","no-store");web_server.send(404,"application/json","{\"error\":\"not_found\"}");});
   web_server.begin();
 }
@@ -1312,7 +1343,7 @@ void touch() {
   else if(!pressed&&down){down=false;interact();setup_open=!setup_open;dirty=true;}
 }
 void liveReceive(){
-  char (&packet)[radio_receiver::kDecodedBufferBytes]=radio_packet_copy;
+  char (&packet)[radio_receiver::kDecodedBufferBytes]=loop_buffers->radio_packet_copy;
   for(int count=0;count<4;++count){
     size_t received_length=0;bool truncated=false;
     if(!radio_receiver::pop(packet,received_length,truncated))break;
@@ -1385,6 +1416,9 @@ void setup() {
   Serial.setRxBufferSize(2048);Serial.setTxBufferSize(4096);
   Serial.begin(115200);Serial.setTxTimeoutMs(20);
   setenv("TZ","EST5EDT,M3.2.0,M11.1.0",1);tzset();
+  loop_buffers=static_cast<LoopBuffers*>(heap_caps_calloc(1,sizeof(LoopBuffers),
+      MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT));
+  if(!loop_buffers){Serial.println("{\"event\":\"fatal\",\"reason\":\"loop_buffers_allocation_failed\"}");return;}
   history=static_cast<weather::Bucket*>(heap_caps_malloc(sizeof(weather::Bucket)*weather::kHistoryBuckets,MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT));
   if (!history) {Serial.println("{\"event\":\"fatal\",\"reason\":\"history_allocation_failed\"}");return;}
   for(size_t i=0;i<weather::kHistoryBuckets;++i)new(history+i)weather::Bucket{};
