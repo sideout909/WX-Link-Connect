@@ -46,8 +46,8 @@ bundle manually; no automatic submission exists.
 See [software status](docs/RELEASE_STATUS.md) for exact checks, build size and remaining
 hardware acceptance tasks, and the [wishlist](docs/WISHLIST.md) for future ideas.
 The current source builds a local **0.1.2 test candidate** with Atlas preview and
-capture-start fixes; see [the investigation](docs/REVIEW_0.1.2.md). It has not been
-flashed or published. Version 0.1.1 remains the published experimental software prerelease
+capture-start fixes; see [the investigation](docs/REVIEW_0.1.2.md). It has been clean-installed for initial owner testing and has not been
+published. Version 0.1.1 remains the published experimental software prerelease
 for initial owner-led device testing. It has not passed hardware/RF acceptance.
 Host checks do not validate radio performance or station compatibility.
 

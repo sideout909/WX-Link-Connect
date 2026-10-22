@@ -1,7 +1,9 @@
 # 0.1.2 Atlas preview and capture-start investigation
 
-This is a local test candidate. The owner explicitly postponed flashing while
-working on main WX-Link. No 0.1.2 device/RF acceptance or publication is claimed.
+This is a local test candidate. The owner initially postponed flashing, then
+authorized verified full-flash backups, a chip erase and a clean 0.1.2 install.
+Initial startup and empty capture storage are verified; no full device/RF
+acceptance or publication is claimed.
 The connected device reported main WX-Link 0.7.5 before the no-device-access hold;
 only allowlisted status fields were read. No credentials, NVS or packet payloads
 were read from it. No subsequent port access is required to reproduce these bugs.

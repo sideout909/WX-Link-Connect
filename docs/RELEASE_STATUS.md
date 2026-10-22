@@ -1,9 +1,10 @@
 # WXLink Connect software status
 
-## Local 0.1.2 test candidate — not flashed or published
+## Local 0.1.2 test candidate — clean-installed, not published
 
-The owner postponed flashing while working on main WX-Link. The current source
-build identifies as 0.1.2; published 0.1.1 and its assets remain unchanged.
+After initially postponing flashing, the owner authorized two verified private
+full-flash backups, a chip erase and clean 0.1.2 provisioning. Published 0.1.1
+and its assets remain unchanged.
 See [the investigation](REVIEW_0.1.2.md) for reproduced failures and test scope.
 
 The Atlas broker now parses immutable native input, so ArduinoJson cannot destroy
@@ -23,7 +24,9 @@ The full host suite, synthetic browser suite, preview AddressSanitizer/UBSan run
 compiled runtime/stack/RAM checks, isolation, capture order and decoder audits
 passed. Largest main frame: 6,576 bytes; loop override: 24 KiB; internal static
 symbols: 157,235 bytes within the 175 KiB guard. This is software evidence only;
-0.1.2 has no on-device or RF acceptance. M12 stays partial.
+Subsequent initial boot checks confirmed 0.1.2, AP/mDNS, display/radio initialization,
+ready capture storage and zero retained sessions. No live packets arrived during
+that bounded check; RF and OTA acceptance remain pending. M12 stays partial.
 
 Correction to earlier storage descriptions: the existing 256 KiB cap is per
 stream per session, not a shared global pool. Eight retained sessions and a
