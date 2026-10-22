@@ -1,5 +1,16 @@
 # WXLink Connect software status
 
+## 0.1.5 experimental prerelease for owner OTA testing
+
+The owner authorized publishing source and application-only OTA assets for
+`v0.1.5`. The numeric release replaces the installed `0.1.5-dev` candidate;
+its software behavior is unchanged apart from the version identity. Use Setup
+→ Update Connect from GitHub after stopping recording. Firmware, schema-1 OTA
+manifest, checksums and third-party notices accompany this prerelease. No device
+was flashed during release preparation. The earlier device lookup/display
+checks are described below; complete OTA installation/boot acceptance remains
+pending. M12 remains partial and this is not a validated production release.
+
 ## Local 0.1.5-dev device test — not published
 
 The owner authorized backup/clean flashing and runtime investigation. The current
