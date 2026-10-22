@@ -13,6 +13,7 @@ bool ready();
 // cannot accidentally shrink it to the address width.
 bool pop(char (&output)[kDecodedBufferBytes], size_t& length, bool& truncated);
 uint32_t dropped();
+uint32_t appDropped();
 struct Diagnostics {
   bool ready=false,enabled=false,init_attempted=false,calibrated=false;
   int current_rssi=0,average_rssi=0,threshold=0,margin=0;

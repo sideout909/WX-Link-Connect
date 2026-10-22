@@ -20,6 +20,12 @@ constexpr bool holdSignal(bool receiving, uint32_t now, uint32_t lastAbove,
   return receiving && elapsedMicros(now, lastAbove) < grace;
 }
 
+// Reserve the final array element for the terminating pulse/gap. A full
+// train must be dropped explicitly, never wrapped into a plausible short one.
+constexpr bool canRecordPulse(unsigned int index, unsigned int capacity) {
+  return capacity > 1 && index < capacity - 1;
+}
+
 // A completed capture may only advance into an unowned ring slot.
 constexpr bool canPublishToNextBuffer(unsigned int nextPulseCount) {
   return nextPulseCount == 0;

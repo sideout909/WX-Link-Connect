@@ -1,6 +1,18 @@
 # WXLink Connect software status
 
-## Local 0.1.3-dev repair candidate — flashed for owner testing
+## Local 0.1.4-dev audit candidate — not flashed or pushed
+
+See [the full audit](DEEP_AUDIT_0.1.4.md). Sixteen public upstream waveforms
+exercise 14 of the 20 enabled OOK decoder symbols and 40 native callbacks, with
+repeated capture and exact-model preview checks. Unknown models still record.
+Host tests, ASan/UBSan, browser checks, isolation audit and pinned build passed.
+Non-Atlas preview, long protocol identities, pulse-overflow loss accounting,
+SDK Wi-Fi persistence and bounded main-transition handling were corrected.
+No device or private backup/capture was accessed. M12 is still partial; all new
+hardware behavior and the complete ESP32 OTA path remain unverified. The two
+cosmetic requests remain documentation only. Older sections below are historical.
+
+## Previous local 0.1.3-dev repair candidate — flashed for owner testing
 
 Wi-Fi scanning now uses a zero-initialized IDF scan configuration and a 15-second
 application deadline, with bounded event notification and explicit cleanup.

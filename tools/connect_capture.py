@@ -508,6 +508,10 @@ def _validate_bundle(directory, session_id, manifest):
                 if first and expected_kind == "decoded":
                     if item["event"] != "session" or item["seq"] != 0:
                         raise CaptureError("Decoded stream must begin with its session record")
+                    if "decoder_local_receiver_revision" in item:
+                        revision = item["decoder_local_receiver_revision"]
+                        if not isinstance(revision, str) or not revision or len(revision) > 128:
+                            raise CaptureError("Local receiver revision is invalid")
                     if item["source"] == "live":
                         required_profile = ("decoder_library", "decoder_revision", "profile_revision",
                                             "requested_center_frequency_mhz", "requested_modulation",

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ArduinoJson.h>
+#include "capture_devices.h"
 
 #include <array>
 #include <cmath>
@@ -12,7 +13,7 @@ constexpr size_t kTextCapacity = 40;
 enum class RainUnit : uint8_t { None, Inch, Millimetre };
 
 struct Identity {
-  std::array<char, 128> protocol{};
+  std::array<char, capture::kProtocolFieldCapacity> protocol{};
   std::array<char, kTextCapacity> model{}, id{}, channel{};
   bool has_protocol = false, has_model = false, has_id = false, has_channel = false;
 };
@@ -36,7 +37,20 @@ struct Model {
 class Adapter {
  public:
   static bool supportsModel(const char* model) {
-    return model && std::strcmp(model, "Acurite-Atlas") == 0;
+    // Exact schemas reviewed against the enabled decoder sources. Unknown
+    // models still record; brand names alone never opt into field mappings.
+    static constexpr const char* models[] = {
+      "Acurite-Atlas", "Acurite-5n1", "Acurite-3n1", "Acurite-Tower",
+      "Acurite-6045M", "Acurite-Rain899", "Ambientweather-F007TH",
+      "Auriol-AFW2A1", "Cotech-367959", "EMOS-E6016", "EMOS-E6018",
+      "EMOS-E6016R", "Esperanza-EWS", "Fineoffset-WHx080", "GT-WT02",
+      "GT-WT03", "LaCrosse-TX", "LaCrosse-WS2310",
+      "LaCrosse-WS3600", "Schou-72543", "Telldus-FT0385R", "Emos-TTX201",
+      "Vauno-EN8822C", "Hyundai-WS"
+    };
+    if (model) for (const auto* known : models)
+      if (std::strcmp(model, known) == 0) return true;
+    return false;
   }
   bool select(const char* protocol, const char* model, const char* id, const char* channel) {
     Identity requested;
@@ -68,9 +82,10 @@ class Adapter {
     updateSingle(document["wind_dir_deg"], model_.wind_direction_deg, uptime_ms, 0, 360, true);
     updateSingle(document["humidity"], model_.humidity_pct, uptime_ms, 0, 100, true);
     updateRain(document.as<JsonVariantConst>(), uptime_ms);
-    updateSingle(document["lux"], model_.light_lux, uptime_ms, 0, 1.0e9);
-    updateSingle(document["uv"].isUnbound() ? document["uvi"] : document["uv"],
-                 model_.uv_index, uptime_ms, 0, 100);
+    updateAliases(document["lux"], document["light_lux"], model_.light_lux,
+                  uptime_ms, 0, 1.0e9);
+    updateAliases(document["uv"], document["uvi"], model_.uv_index,
+                  uptime_ms, 0, 100);
     return true;
   }
 
@@ -104,7 +119,7 @@ class Adapter {
 
   static Identity readIdentity(JsonVariantConst native) {
     Identity identity;
-    char protocol[128];
+    char protocol[capture::kProtocolFieldCapacity];
     if (readText(native["protocol"], protocol, sizeof(protocol))) copy(protocol, identity.protocol, identity.has_protocol);
     char value[kTextCapacity];
     if (readText(native["model"], value, sizeof(value))) copy(value, identity.model, identity.has_model);
@@ -187,6 +202,17 @@ class Adapter {
       return;
     }
     assign(target, value, now);
+  }
+
+  static void updateAliases(JsonVariantConst first, JsonVariantConst second,
+                            Value& target, uint64_t now, double minimum, double maximum) {
+    if (!first.isUnbound() && !second.isUnbound()) {
+      double a=0, b=0;
+      if (!number(first,a) || !number(second,b) || std::fabs(a-b)>0.01) {
+        invalidate(target,now,true); return;
+      }
+    }
+    updateSingle(first.isUnbound()?second:first,target,now,minimum,maximum);
   }
 
   void updateRain(JsonVariantConst native, uint64_t now) {

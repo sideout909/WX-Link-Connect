@@ -1,0 +1,167 @@
+{
+  "repository": "merbanan/rtl_433_tests",
+  "revision": "1aa8c29d6b9383739d1aeed495dbc5069b704392",
+  "extraction": "rtl_433 -r INPUT.cu8 -R 0 -W OUTPUT.ook; use -s 1000000 for named 1000k captures; retained measured pulse/gap numbers only",
+  "fixtures": [
+    {
+      "name": "esperanza_ews",
+      "model": "Esperanza-EWS",
+      "count": 1,
+      "source_path": "tests/esperanza_ews/gfile004.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/esperanza_ews/gfile004.cu8",
+      "source_sha256": "bfa8630cbab6b14c4996bb25c77a6359030c5c78f11ae54dbcee03549428587e",
+      "reference_sha256": "2d987defd576240b9eef3dbe2e1a8fcebb9073b2f6dcd78fd3cc973d02075e42",
+      "pulse_sha256": "b311f9a3abc2a9029161702e58416cd499b5fcf4ade635d936436a40e7baba40"
+    },
+    {
+      "name": "schou_72543",
+      "model": "Schou-72543",
+      "count": 1,
+      "source_path": "tests/Schou/g1083_433.89M_250k.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/Schou/g1083_433.89M_250k.cu8",
+      "source_sha256": "5456f0cad6c427b785dc0dcdd5c1b39f03d477eda1e3f5da6596414fe4c2f023",
+      "reference_sha256": "0cff9b7370688dc77a5188684262c828d8698f35afc63548dccdc156941fd835",
+      "pulse_sha256": "ff86f0e573c69ad130278bca75b06c65c67cf4f77d7bc292cd3bc9c16affa689"
+    },
+    {
+      "name": "hyundai_ws",
+      "model": "Hyundai-WS",
+      "count": 1,
+      "source_path": "tests/wssensor/01/g001_433.92M_250k.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/wssensor/01/g001_433.92M_250k.cu8",
+      "source_sha256": "6f8854c6fc66cbc60ca86abecef367a427e0f0c690ea6761c19b9a8d65f27af1",
+      "reference_sha256": "a2c7f0aec4e9e9dde648c1a7c1bcd61114316fa9bbee4ada00587ab2c2c713df",
+      "pulse_sha256": "cd4035feea8f3b9e083fab6b78cc96adfb6fa7a1f7b962611ad3fec352c99e33"
+    },
+    {
+      "name": "vauno_en8822c",
+      "model": "Vauno-EN8822C",
+      "count": 1,
+      "source_path": "tests/vauno-en8822c-1/01/g1148_433.92M_250k.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/vauno-en8822c-1/01/g1148_433.92M_250k.cu8",
+      "source_sha256": "84ff41590fc57aaaadd5206a434d114673ffcad98410b1deee726eb1d01b7369",
+      "reference_sha256": "5a2eba6e7bd9c9122a9c40cf7a8812705d5f305456ebb603f0b3040e00a9e722",
+      "pulse_sha256": "1e025722658779bb9ecccb277f85bd6814c56f1bdbd06a29931c3903366742ab"
+    },
+    {
+      "name": "emos_ttx201",
+      "model": "Emos-TTX201",
+      "count": 1,
+      "source_path": "tests/ttx201/01/g001_433.92M_250k.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/ttx201/01/g001_433.92M_250k.cu8",
+      "source_sha256": "b0c408787822aa8bd4e3b497e84c65056806275e63a5d05676c5e95c4fb0c4a4",
+      "reference_sha256": "c10a181d84562a925a0012b0b95bc689a885038f349d40d4259cebf39e540f68",
+      "pulse_sha256": "e67423b5bac5415dda1a92a37aade64ed038b303248f6b87426e01da3f3bd88d"
+    },
+    {
+      "name": "lacrosse_tx",
+      "model": "LaCrosse-TX",
+      "count": 2,
+      "source_path": "tests/lacrosse/tx6u_tx7u/gfile001.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/lacrosse/tx6u_tx7u/gfile001.cu8",
+      "source_sha256": "2f22942b7b10f086cfa9ba8ab29507e7e5e0e6ff7ad32924ac362622f35662f9",
+      "reference_sha256": "f3c694b4669d39dff061169837668918ab4d31a3cb71206eb77098f8598693f4",
+      "pulse_sha256": "652310dc98f5ac3263dfa2df736baf4d7bd71bf1bcd8fca093a767ab8c5a6896"
+    },
+    {
+      "name": "lacrosse_ws2310",
+      "model": "LaCrosse-WS2310",
+      "count": 1,
+      "source_path": "tests/lacrosse/ws2310/gfile001.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/lacrosse/ws2310/gfile001.cu8",
+      "source_sha256": "56fc44b0f5709237326d0499dafdab63b7a07207bfdbe26f23cb0b2840e5dad8",
+      "reference_sha256": "e05fae7f2fca771359bdc0dc3a6df888852186a1d88b6ba8c207637895c483f7",
+      "pulse_sha256": "8216d3056471b4480e322a1cc59d8d9ee82301b35985fc52d3d04364f88e0599"
+    },
+    {
+      "name": "gt_wt03",
+      "model": "GT-WT03",
+      "count": 10,
+      "source_path": "tests/Globaltronics/GT-WT-03/01/g001_433.92M_250k.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/Globaltronics/GT-WT-03/01/g001_433.92M_250k.cu8",
+      "source_sha256": "0e3048d18f63bd0b8dcc52ba035abbb23d4644cead7680cccd94ee0e05c107cc",
+      "reference_sha256": "6cc7fbb3ab2ef1551ad4604d1bf2ce93468101f2ce77ea8cf333c51930da647a",
+      "pulse_sha256": "a772021580dffdbf34578fb1d1aa4afe51319e76b938bbcd9f93da2429c83ad6"
+    },
+    {
+      "name": "gt_wt02",
+      "model": "GT-WT02",
+      "count": 6,
+      "source_path": "tests/Globaltronics/GT-WT-02/01/gfile003.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/Globaltronics/GT-WT-02/01/gfile003.cu8",
+      "source_sha256": "8a9ee46cf4de09d109d28a2259e0923b11e47c856a5416877bd4e776d43ea7d8",
+      "reference_sha256": "70be03963437a663f72098345e0443671c02686eedfcb76e1be68f822fe020d1",
+      "pulse_sha256": "c4c454e98513e8fc967ddcbf17a5adabba3c1419f5b63482e976b0e7f812f6b6"
+    },
+    {
+      "name": "fineoffset_whx080",
+      "model": "Fineoffset-WHx080",
+      "count": 1,
+      "source_path": "tests/fineoffset/fineoffset_wh1080/01/gfile001.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/fineoffset/fineoffset_wh1080/01/gfile001.cu8",
+      "source_sha256": "60801db8c6cdb5f4bf28a1f96001e664ea97357f73e436b9f2a06b6ed47d69e1",
+      "reference_sha256": "17ca590534e370ebefbdc6ded739e9c6ae6e65dec9b2ec637b90c1345fd1e4fa",
+      "pulse_sha256": "1d2ac4013ae4e354dd8ec495c1c0fca4c403cb94b92cf5c1bb59515256e7bba1"
+    },
+    {
+      "name": "cotech_367959",
+      "model": "Cotech-367959",
+      "count": 1,
+      "source_path": "tests/cotech/cotech_36-7959/01/g001_433.92M_1000k.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/cotech/cotech_36-7959/01/g001_433.92M_1000k.cu8",
+      "source_sha256": "780caf9f19e620c96a9ee47e012eb5d00423efb17bd6bb7827ba7bdbb4a1304b",
+      "reference_sha256": "d304e7340d51c22dc679f457a96c600e60329e2a34f7587ae5a6b9c81528b5b6",
+      "pulse_sha256": "d0ff0879f771e2fb09afe64cdfef91a0247800d8f286973ca533a91f781d8098"
+    },
+    {
+      "name": "auriol_afw2a1",
+      "model": "Auriol-AFW2A1",
+      "count": 1,
+      "source_path": "tests/auriol/Auriol_AFW2A1/g017_433.91M_250k.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/auriol/Auriol_AFW2A1/g017_433.91M_250k.cu8",
+      "source_sha256": "434ec665aca5e4a2b924479ad876dd3efa6f58c996aea77546c0f15a469ed38f",
+      "reference_sha256": "3276204b882c7fd810d7a4e2e630556e3d32be5601dd8e25858bebab923cf9d5",
+      "pulse_sha256": "d3cf169d244c73d94708ffb2ab175dc33cc4594d3c404b8f62e41f575ffad8ef"
+    },
+    {
+      "name": "ambientweather_f007th",
+      "model": "Ambientweather-F007TH",
+      "count": 5,
+      "source_path": "tests/ambient_weather/01/f007th.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/ambient_weather/01/f007th.cu8",
+      "source_sha256": "7e65c6931c6cd2aa1b2f7ee7b6255baebc19e70cd1db0b5ccb66988f42eeb3e8",
+      "reference_sha256": "15fc478c03cbee05183703685e7b2c810aa901651f00c1e66c48b280f12f06a4",
+      "pulse_sha256": "88bb58d9ef8e992469d551525014a2251f0ee89db503e59a9b931299e2174350"
+    },
+    {
+      "name": "acurite_tower",
+      "model": "Acurite-Tower",
+      "count": 3,
+      "source_path": "tests/acurite/Acurite_592TXR/acurite-592txr-003.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/acurite/Acurite_592TXR/acurite-592txr-003.cu8",
+      "source_sha256": "07e7686a2aa60545d12870d0f15d1d115f3d89698bb64ab39399ceff7896482c",
+      "reference_sha256": "e8ffdf5aa85cdb2c65c79f666e72ea19f4bf3874d708f3cb9eebdc5da511c22a",
+      "pulse_sha256": "de0362e92e30a0692cdc986201f2895cd06904877890bf6366d52e02fca426db"
+    },
+    {
+      "name": "acurite_5n1",
+      "model": "Acurite-5n1",
+      "count": 3,
+      "source_path": "tests/acurite/Acurite_5-n-1/VN1TXC_02.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/acurite/Acurite_5-n-1/VN1TXC_02.cu8",
+      "source_sha256": "c70950b03e04095cbf78133d5a3c4cacf2d999553ed385ca9e1334d5c663fb16",
+      "reference_sha256": "af74a92c1158461bf123bf3347f357e938ccd55238f2576776b81ff16ffbf6ed",
+      "pulse_sha256": "8773ab3e13ce9d388ba1ff508358d744dda703f4b12a6795c26d383ad5892415"
+    },
+    {
+      "name": "acurite_3n1",
+      "model": "Acurite-3n1",
+      "count": 2,
+      "source_path": "tests/acurite/Acurite_3-in-1/02/g001_433.92M_250k.cu8",
+      "source_url": "https://github.com/merbanan/rtl_433_tests/blob/1aa8c29d6b9383739d1aeed495dbc5069b704392/tests/acurite/Acurite_3-in-1/02/g001_433.92M_250k.cu8",
+      "source_sha256": "d3d964b90b3861ddeeed7edb4e982714bcbedba29f177fa31faaeec9cea6c641",
+      "reference_sha256": "3f6d15528a78eb85bb29058d33a67b4b39e621b7c89be4233a8e46e4033bd6c9",
+      "pulse_sha256": "441748822a25ff6dd0ce2b3e26d2898fc2437849f44d44ccd4ce6bf27d54032b"
+    }
+  ]
+}

@@ -10,6 +10,7 @@ inline constexpr char kId[] = "wx-ook43392-rtl433-f0a8156-v1";
 inline constexpr char kLibrary[] = "rtl_433_ESP";
 inline constexpr char kRevision[] = "f0a81569b58a60ea8b3a5efd8e9b39670e8d8df8";
 inline constexpr uint32_t kRevisionNumber = 1;
+inline constexpr char kLocalReceiverRevision[] = "wxconnect-ook-edge-grace-bounded-v2";
 inline constexpr float kCenterFrequencyMHz = 433.92f;
 inline constexpr char kModulation[] = "OOK";
 // Pinned rtl_433_ESP CC1101 defaults used by its fixed OOK initialization.

@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "board": "panellan_sc05_x",
+  "partition_layout": "default_8MB-v1",
+  "flash_bytes": 8388608,
+  "version": "0.8.0",
+  "size": 1736176,
+  "sha256": "065fcc730c540dc7af044fd368844d3dbc57db548fbd4d1eaf0ed4fb6b206674",
+  "firmware_url": "https://github.com/sideout909/WX-Link/releases/download/v0.8.0/weather-link-panellan_sc05_x.bin"
+}

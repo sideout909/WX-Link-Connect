@@ -1,0 +1,16 @@
+[
+  {
+    "time": "@0.268088s",
+    "model": "LaCrosse-TX",
+    "id": 48,
+    "temperature_C": 20.5,
+    "mic": "PARITY"
+  },
+  {
+    "time": "@0.390644s",
+    "model": "LaCrosse-TX",
+    "id": 48,
+    "temperature_C": 20.5,
+    "mic": "PARITY"
+  }
+]

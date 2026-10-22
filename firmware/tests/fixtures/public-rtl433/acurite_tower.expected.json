@@ -1,0 +1,32 @@
+[
+  {
+    "time": "@0.040188s",
+    "model": "Acurite-Tower",
+    "id": 12053,
+    "channel": "C",
+    "battery_ok": 1,
+    "temperature_C": 26.7,
+    "humidity": 74,
+    "mic": "CHECKSUM"
+  },
+  {
+    "time": "@0.040188s",
+    "model": "Acurite-Tower",
+    "id": 12053,
+    "channel": "C",
+    "battery_ok": 1,
+    "temperature_C": 26.7,
+    "humidity": 74,
+    "mic": "CHECKSUM"
+  },
+  {
+    "time": "@0.040188s",
+    "model": "Acurite-Tower",
+    "id": 12053,
+    "channel": "C",
+    "battery_ok": 1,
+    "temperature_C": 26.7,
+    "humidity": 74,
+    "mic": "CHECKSUM"
+  }
+]

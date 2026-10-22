@@ -97,6 +97,9 @@ inline size_t encodeJsonl(const Record& record, char* output, size_t capacity) {
          writer.string(wxconnect::radio_profile::kLibrary, std::strlen(wxconnect::radio_profile::kLibrary)) &&
          writer.literal(",\"decoder_revision\":") &&
          writer.string(wxconnect::radio_profile::kRevision, std::strlen(wxconnect::radio_profile::kRevision)) &&
+         writer.literal(",\"decoder_local_receiver_revision\":") &&
+         writer.string(wxconnect::radio_profile::kLocalReceiverRevision,
+                       std::strlen(wxconnect::radio_profile::kLocalReceiverRevision)) &&
          writer.literal(",\"profile_revision\":") && writer.number(wxconnect::radio_profile::kRevisionNumber) &&
          writer.literal(",\"radio_initialization_state\":\"init_accepted_readback_unverified\",\"requested_center_frequency_mhz\":433.92,\"requested_modulation\":\"OOK\",\"requested_rx_bandwidth_khz\":812,\"requested_rssi_margin_db\":9,\"radio_readback_verified\":false,\"firmware\":") &&
          writer.string(firmware_version::display, std::strlen(firmware_version::display)) &&

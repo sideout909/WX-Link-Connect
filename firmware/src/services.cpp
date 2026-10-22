@@ -100,8 +100,21 @@ void loadConnectSettings() {
 }
 
 void startWifi() {
+  // Preferences owns Connect credentials. Do not persist AP/STA credentials in
+  // the SDK's shared Wi-Fi namespace or reuse a previous firmware's STA config.
+  WiFi.persistent(false);
+  WiFi.setAutoReconnect(false);
   WiFi.setHostname("wxlink");
-  WiFi.mode(WIFI_AP_STA);
+  if (!WiFi.mode(WIFI_AP_STA) || esp_wifi_set_storage(WIFI_STORAGE_RAM) != ESP_OK) {
+    current.portal_test_status = "Wi-Fi RAM storage initialization failed";
+    return;
+  }
+  wifi_config_t station_config{};
+  if (esp_wifi_set_config(WIFI_IF_STA, &station_config) != ESP_OK) {
+    current.portal_test_status = "Wi-Fi station initialization failed";
+    return;
+  }
+  WiFi.setAutoReconnect(!config.ssid.isEmpty());
   current.ap_name = "WXConnect-" + String(uint32_t(ESP.getEfuseMac()), HEX).substring(4);
   current.ap = WiFi.softAP(current.ap_name.c_str(), config.setup_wifi_key.c_str());
   if (current.ap) {

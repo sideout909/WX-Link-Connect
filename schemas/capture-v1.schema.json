@@ -98,6 +98,11 @@
         "null"
       ],
       "minimum": 0
+    },
+    "decoder_local_receiver_revision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
     }
   },
   "allOf": [

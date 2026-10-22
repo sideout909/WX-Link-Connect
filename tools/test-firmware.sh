@@ -7,7 +7,7 @@ trap 'rm -f -- "$test_binary" "$test_binary.data.o" "$test_binary.abuf.o"' EXIT
 g++ -std=c++17 -Wall -Wextra -Werror -I"$project_dir/vendor/rtl_433_ESP/src" \
     "$project_dir/vendor/rtl_433_ESP/test/capture_utils_test.cpp" -o "$test_binary"
 "$test_binary"
-for runtime_test in connect_wifi_scan capture_storage_runtime; do
+for runtime_test in connect_wifi_scan capture_storage_runtime connect_transfer; do
   g++ -std=c++17 -Wall -Wextra -Werror -I"$project_dir/firmware/tests/fakes" \
       -I"$project_dir/firmware/include" "$project_dir/firmware/tests/${runtime_test}_test.cpp" -o "$test_binary"
   "$test_binary"
@@ -120,3 +120,9 @@ g++ -std=c++17 -Wall -Wextra -Werror -Wno-misleading-indentation \
 python3 -m unittest discover -s "$script_dir" -p 'test_firmware_console.py' -v
 python3 -m unittest discover -s "$script_dir" -p 'test_connect_capture.py' -v
 python3 -m unittest discover -s "$script_dir" -p 'test_connect_page.py' -v
+
+python3 "$project_dir/tools/test-public-decoders.py"
+
+g++ -std=c++17 -Wall -Wextra -Werror -I"$project_dir/firmware/include" \
+    -I"$project_dir/vendor/ArduinoJson/src" "$project_dir/firmware/tests/connect_migration_manifest_test.cpp" -o "$test_binary"
+"$test_binary" "$project_dir/firmware/tests/fixtures/main-release-v0.8.0.json"

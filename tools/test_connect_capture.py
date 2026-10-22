@@ -232,6 +232,19 @@ class CaptureCollectorTests(unittest.TestCase):
         self.assertTrue(reply["done"])
 
 
+    def test_local_receiver_revision_is_optional_but_bounded(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            for index, value in enumerate(("wxconnect-ook-edge-grace-bounded-v2", "", None, 2, "x" * 129)):
+                records = self.base_records()
+                records[0]["decoder_local_receiver_revision"] = value
+                directory = Path(temporary) / str(index)
+                manifest = self.write_bundle(directory, records=records)
+                if index == 0:
+                    connect_capture._validate_bundle(directory, self.SESSION, manifest)
+                else:
+                    with self.assertRaises(connect_capture.CaptureError):
+                        connect_capture._validate_bundle(directory, self.SESSION, manifest)
+
     def test_live_session_requires_decoder_and_rf_provenance(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary) / "bundle"

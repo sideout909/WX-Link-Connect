@@ -46,12 +46,6 @@ inline bool version(const char* value, std::array<unsigned, 3>& parts) {
   return value[at] == '\0';
 }
 
-inline bool newer(const char* candidate, const char* current) {
-  std::array<unsigned, 3> candidate_parts{}, current_parts{};
-  return version(candidate, candidate_parts) && version(current, current_parts) &&
-         candidate_parts > current_parts;
-}
-
 inline bool sha256(const char* value) {
   if (!value || std::strlen(value) != 64) return false;
   const auto* cursor = reinterpret_cast<const unsigned char*>(value);
@@ -85,13 +79,17 @@ inline bool downloadHost(const char* value) {
   return false;
 }
 
-inline bool validManifest(const Manifest& manifest, const char* current_version,
+inline bool validManifest(const Manifest& manifest,
                           uint32_t expected_flash_bytes, uint32_t update_slot_bytes) {
+  std::array<unsigned, 3> target_version{};
+  // Connect and WX-Link are different products. Their release numbers cannot
+  // be compared as an in-product upgrade/downgrade check. Only stable, numeric
+  // main releases at the fixed main-repository URL are accepted.
   return manifest.schema == 1 && manifest.board &&
          std::strcmp(manifest.board, kBoard) == 0 && manifest.partition_layout &&
          std::strcmp(manifest.partition_layout, kPartitionLayout) == 0 &&
          manifest.flash_bytes == expected_flash_bytes && manifest.size >= 32768 &&
-         manifest.size <= update_slot_bytes && newer(manifest.version, current_version) &&
+         manifest.size <= update_slot_bytes && version(manifest.version, target_version) &&
          sha256(manifest.sha256) && firmwareUrl(manifest.firmware_url, manifest.version);
 }
 

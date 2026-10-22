@@ -67,6 +67,10 @@ int main() {
   constexpr char neighbor[]=R"({"model":"Acurite-Atlas","id":202,"channel":"A","temperature_F":100})";
   assert(!adapter.ingest(neighbor,sizeof(neighbor)-1,7000));
   assert(adapter.model().temperature_c.value==20);
+  preview::Adapter undecided;capture::CandidateTable competing;
+  for(unsigned i=0;i<3;++i)competing.observe(nullptr,"Acurite-Atlas","101","A",i);
+  competing.observe(nullptr,"Acurite-5n1","202","B",4);
+  assert(!preview::automaticCandidate(competing,undecided));
   preview::Adapter fresh;capture::CandidateTable mixed;
   mixed.observe("unknown","Other-Station","202",nullptr,1);
   for(int i=0;i<3;++i)mixed.observe(nullptr,"Acurite-Atlas","101","A",i+2);

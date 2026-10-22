@@ -567,7 +567,7 @@ void rfStatus(){
   d["rssi_calibrated"]=r.calibrated;d["live_decoded_packets"]=live_packets.received;
   d["live_view_rejected"]=live_packets.rejected;d["preview_selected"]=preview_adapter.model().selected;
   d["decoded_signals"]=r.decoded_signals;d["decoded_messages"]=r.decoded_messages;d["zero_decodes"]=r.zero_decodes;
-  d["capture_drops"]=r.capture_drops;d["decoder_drops"]=r.decoder_drops;d["app_queue_drops"]=radio_receiver::dropped();
+  d["capture_drops"]=r.capture_drops;d["decoder_drops"]=r.decoder_drops;d["app_queue_drops"]=radio_receiver::appDropped();
   d["sensor_status"]=sensor_health::label(sensorState());d["accepted"]=store->accepted;d["repeats"]=store->duplicates;d["rejected"]=store->rejected;
   const uint64_t now=dataNow();JsonArray types=d.createNestedArray("type_ages_ms");
   for(auto stamp:sensor_monitor.types){if(stamp&&now>=stamp)types.add(now-stamp);else types.add(nullptr);}
@@ -1325,7 +1325,7 @@ void liveReceive(){
     live_packets.observe(packet,native_length,truncated,uptimeMs());
     if(truncated)continue;
     StaticJsonDocument<2048>d;if(!wxconnect::preview::parseNative(packet,native_length,d))continue;
-    char protocol[128],model[128],identity[128],channel[128];
+    char protocol[wxconnect::capture::kProtocolFieldCapacity],model[128],identity[128],channel[128];
     const bool has_protocol=nativeField(d.as<JsonVariantConst>(),"protocol",protocol,sizeof(protocol));
     const bool has_model=nativeField(d.as<JsonVariantConst>(),"model",model,sizeof(model));
     const bool has_id=nativeField(d.as<JsonVariantConst>(),"id",identity,sizeof(identity));

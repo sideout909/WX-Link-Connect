@@ -29,6 +29,21 @@ int main() {
   assert(adapter.model().humidity_pct.valid && adapter.model().humidity_pct.value == 100);
   assert(adapter.model().wind_mph.time_ms == 1000);  // Omitted field keeps its own age.
 
+  Adapter cotech;assert(cotech.select(nullptr,"Cotech-367959","1",nullptr));
+  constexpr char light[]=R"({"model":"Cotech-367959","id":1,"light_lux":12345,"uvi":3.2,"wind_avg_m_s":1})";
+  assert(cotech.ingest(light,sizeof(light)-1,1000));
+  assert(cotech.model().light_lux.valid&&cotech.model().light_lux.value==12345);
+  constexpr char light_conflict[]=R"({"model":"Cotech-367959","id":1,"lux":10,"light_lux":11})";
+  assert(cotech.ingest(light_conflict,sizeof(light_conflict)-1,2000));
+  assert(!cotech.model().light_lux.valid&&cotech.model().light_lux.conflict);
+
+  constexpr char uv_conflict[]=R"({"model":"Cotech-367959","id":1,"uv":1,"uvi":2})";
+  assert(cotech.ingest(uv_conflict,sizeof(uv_conflict)-1,3000));
+  assert(!cotech.model().uv_index.valid&&cotech.model().uv_index.conflict);
+  assert(!Adapter::supportsModel("RainPoint-Soil"));
+  assert(!Adapter::supportsModel("Homelead-HG9901")); // Soil moisture is not air humidity.
+  assert(!Adapter::supportsModel("RainPoint-HCS012ARF")); // Native capture only: unresolved rain scaling.
+
   Adapter nullable;nullable.select("acurite","Acurite-Atlas","101","A");
   assert(nullable.ingest(first,sizeof(first)-1,1000));
   constexpr char nulls[]=R"({"protocol":"acurite","model":"Acurite-Atlas","id":101,"channel":"A","temperature_F":null,"humidity":null,"wind_avg_mi_h":null,"wind_dir_deg":null,"rain_in":null,"lux":null,"uv":null})";

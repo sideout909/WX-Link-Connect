@@ -89,7 +89,12 @@ bool pop(char (&output)[kDecodedBufferBytes],size_t& length,bool& truncated) {
   xQueueSend(available,&slot,0);
   return true;
 }
-uint32_t dropped() { return queue_drops; }
+uint32_t appDropped() { return queue_drops; }
+uint32_t dropped() {
+  if (!initialized) return queue_drops;
+  const auto snapshot = receiver.statusSnapshot();
+  return queue_drops + snapshot.droppedCaptureBuffers + snapshot.droppedDecoderQueue;
+}
 Diagnostics diagnostics(){
   Diagnostics d;d.ready=initialized;d.init_attempted=initialization_attempted;if(!initialized)return d;
   const auto s=receiver.statusSnapshot();d.enabled=s.receiverEnabled;

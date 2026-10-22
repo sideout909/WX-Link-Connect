@@ -135,6 +135,7 @@ uint8_t rtl_433_ESP::_avaiablePulseTrain = 0;
 volatile unsigned long rtl_433_ESP::_lastChange = 0; // Timestamp of previous edge
 int rtl_433_ESP::rtlVerbose = 0;
 volatile int16_t rtl_433_ESP::_nrpulses;
+static volatile bool pulse_train_overflow = false;
 
 // Variables for OOK Threshold auto calibrate function
 
@@ -767,6 +768,16 @@ void ICACHE_RAM_ATTR rtl_433_ESP::interruptHandler() {
     return;
   }
 
+  if (pulse_train_overflow || !rtl_433_capture::canRecordPulse(_nrpulses, PD_MAX_PULSES)) {
+    if (!pulse_train_overflow) {
+      pulse_train_overflow = true;
+      portENTER_CRITICAL_ISR(&captureMux);
+      ++droppedCaptureBuffers;
+      portEXIT_CRITICAL_ISR(&captureMux);
+    }
+    _lastChange = now;
+    return;
+  }
   volatile pulse_data_t& pulseTrain = _pulseTrains[_actualPulseTrain];
   volatile int* pulse = pulseTrain.pulse;
   volatile int* gap = pulseTrain.gap;
@@ -920,6 +931,7 @@ void rtl_433_ESP::resetReceiver() {
   _avaiablePulseTrain = 0;
   _actualPulseTrain = 0;
   _nrpulses = 0;
+  pulse_train_overflow = false;
   portEXIT_CRITICAL(&captureMux);
 #if PRETRIGGER_ENABLED
   _pretriggerHead = 0;
@@ -1347,6 +1359,14 @@ void rtl_433_ESP::rtl_433_ReceiverTask(void* pvParameters) {
 #endif
           receiveMode = false;
           totalSignals++;
+          if (pulse_train_overflow) {
+            portENTER_CRITICAL(&captureMux);
+            memset(&_pulseTrains[_actualPulseTrain], 0, sizeof(pulse_data_t));
+            portEXIT_CRITICAL(&captureMux);
+            pulse_train_overflow = false;
+            _nrpulses = 0;
+            continue;
+          }
           if (rtl_433_capture::isCompleteSignal(
                   _nrpulses, signalEnd - signalStart, PD_MIN_PULSES,
                   MINIMUM_SIGNAL_LENGTH)) {

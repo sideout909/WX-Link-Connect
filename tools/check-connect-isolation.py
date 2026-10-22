@@ -67,6 +67,16 @@ for legacy_status in ('forecast_periods', 'hourly_periods', 'sunrise', 'sunset',
     require(f'out["{legacy_status}"]' not in serial_status,
             f"legacy weather-service status remains in the Connect USB API: {legacy_status}")
 
+wifi_start = services.split('void startWifi() {', 1)[1].split('bool persistSettings()', 1)[0]
+require(wifi_start.index('WiFi.persistent(false)') < wifi_start.index('WiFi.mode('),
+        "SDK Wi-Fi persistence must be disabled before mode initialization")
+require('esp_wifi_set_storage(WIFI_STORAGE_RAM) != ESP_OK' in wifi_start and
+        'wifi_config_t station_config{}' in wifi_start and
+        'esp_wifi_set_config(WIFI_IF_STA, &station_config)' in wifi_start,
+        "Connect must fail closed on RAM-storage failure and clear inherited RAM STA config")
+require(not re.search(r'WiFi\.begin\(\s*\)', services),
+        "zero-argument Wi-Fi begin imports SDK-saved credentials")
+
 # Exercise the exact allowlist implied by loadConnectSettings() against a
 # synthetic pre-Connect settings record with every external service enabled.
 legacy = {

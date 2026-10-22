@@ -80,8 +80,9 @@ No automatic community upload, backend, accounts, APRS/CWOP/WU/Weathercloud, NWS
 generic or automatic OTA, weather-station binding, full-day rain claim, all-band
 sweep, arbitrary register UI, transmit/replay-to-air or SD requirement. The only
 Connect OTA path is the protected, typed-confirmation transition to the fixed main
-WX-Link release repository; it checks the SC05_X board/partition, newer version,
+WX-Link release repository; it checks the SC05_X board/partition, stable main release version,
 image header and manifest SHA-256, and writes only the inactive application slot.
+Connect and main release numbers are independent and are not compared.
 It does not copy Connect credentials/settings, erase capture files, or let users
 choose a repository. Volunteers must export captures first because WX-Link does
 not browse Connect sessions. No routine update checks or external weather uploads

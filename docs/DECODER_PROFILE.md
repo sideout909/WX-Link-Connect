@@ -17,3 +17,14 @@ One CC1101 receives one profile at a time. Profile switching and FSK are
 deferred. Connect does not enable every decoder in the upstream library, scan
 multiple bands, or claim simultaneous support for multiple modulation modes.
 See [software status](RELEASE_STATUS.md) for pending device and RF acceptance checks.
+
+## Public replay evidence and local receiver patches
+
+The upstream revision above is the baseline. Session metadata additionally records
+`decoder_local_receiver_revision=wxconnect-ook-edge-grace-bounded-v2`, identifying
+the Connect edge/dropout and bounded overflow changes. RF settings/profile ID are
+unchanged. Twenty compiled decoder names are checked against the 191-byte protocol
+identity bound. There are 16 offline public waveforms covering 14 enabled symbols,
+40 native outputs and the independent capture/preview consumers. Six symbols
+remain source-reviewed only. See [the coverage matrix](DEEP_AUDIT_0.1.4.md).
+Decoder inclusion, waveform replay and hardware station verification are distinct.

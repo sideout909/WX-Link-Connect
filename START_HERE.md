@@ -10,7 +10,7 @@ bash tools/pio.sh run -d firmware
 bash tools/test-firmware.sh
 ```
 
-No serial port is needed for these commands. Do not flash a device as part of these software checks. The current source is a local 0.1.3-dev repair candidate, flashed for owner testing; see docs/RELEASE_STATUS.md for measured results and remaining acceptance checks. Published prerelease 0.1.1 remains unchanged. See [the 0.1.2 investigation](docs/REVIEW_0.1.2.md) for the Atlas/capture fixes and their software evidence. Hardware and RF acceptance remain pending.
+No serial port is needed for these commands. Do not flash a device as part of these software checks. The current source is a local-only 0.1.4-dev software audit candidate, not flashed or pushed. See docs/DEEP_AUDIT_0.1.4.md for public multi-station replay evidence and remaining hardware checks. The device restored in the preceding task was not accessed during this audit. Published prerelease 0.1.1 remains unchanged. See [the 0.1.2 investigation](docs/REVIEW_0.1.2.md) for the Atlas/capture fixes and their software evidence. Hardware and RF acceptance remain pending.
 
 The first-run admin credential is created in Connect's isolated settings. Do not import or reuse the original weather firmware's saved password. Never include NVS, credentials, full-flash images, owner logs or unreviewed captures in a bundle.
 

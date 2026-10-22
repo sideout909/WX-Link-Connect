@@ -8,9 +8,10 @@
 namespace wxconnect::capture {
 constexpr size_t kCandidateCapacity = 32;
 constexpr size_t kIdentityFieldCapacity = 40;
+constexpr size_t kProtocolFieldCapacity = 192;
 
 struct CandidateIdentity {
-  std::array<char, 128> protocol{};
+  std::array<char, kProtocolFieldCapacity> protocol{};
   std::array<char, kIdentityFieldCapacity> model{};
   std::array<char, kIdentityFieldCapacity> id{};
   std::array<char, kIdentityFieldCapacity> channel{};
