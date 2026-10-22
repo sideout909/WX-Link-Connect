@@ -45,7 +45,7 @@ bundle manually; no automatic submission exists.
 
 See [software status](docs/RELEASE_STATUS.md) for exact checks, build size and remaining
 hardware acceptance tasks, and the [wishlist](docs/WISHLIST.md) for future ideas.
-The current source is **0.1.5**, an experimental software prerelease prepared for OTA testing with explicit Connect updates, TLS/memory fixes and Home glyph corrections. See [the current investigation](docs/UPDATE_AND_DISPLAY_0.1.5.md) for device evidence and limits. The owner authorized publication for device testing; hardware acceptance remains partial. See [public replay evidence and remaining checks](docs/DEEP_AUDIT_0.1.4.md). See [current evidence and remaining checks](docs/RELEASE_STATUS.md) and the [small UI handoff](docs/SMALL_UI_TODO.md).
+The current source is **0.1.5**, a software release with owner-confirmed Connect self-OTA and Connect-to-main upgrades with explicit Connect updates, TLS/memory fixes and Home glyph corrections. See [the current investigation](docs/UPDATE_AND_DISPLAY_0.1.5.md) for device evidence and limits. The owner confirmed both upgrade paths and authorized promotion to a regular [0.1.5 release](https://github.com/sideout909/WX-Link-Connect/releases/tag/v0.1.5); wider hardware/RF acceptance remains partial. See [public replay evidence and remaining checks](docs/DEEP_AUDIT_0.1.4.md). See [current evidence and remaining checks](docs/RELEASE_STATUS.md) and the [small UI handoff](docs/SMALL_UI_TODO.md).
 
 The previous source built a local **0.1.2 test candidate** with Atlas preview and
 capture-start fixes; see [the investigation](docs/REVIEW_0.1.2.md). It has been clean-installed for initial owner testing and has not been

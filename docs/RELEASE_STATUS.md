@@ -1,15 +1,21 @@
 # WXLink Connect software status
 
-## 0.1.5 experimental prerelease for owner OTA testing
+## 0.1.5 release — owner-confirmed OTA paths
 
-The owner authorized publishing source and application-only OTA assets for
-`v0.1.5`. The numeric release replaces the installed `0.1.5-dev` candidate;
-its software behavior is unchanged apart from the version identity. Use Setup
-→ Update Connect from GitHub after stopping recording. Firmware, schema-1 OTA
-manifest, checksums and third-party notices accompany this prerelease. No device
-was flashed during release preparation. The earlier device lookup/display
-checks are described below; complete OTA installation/boot acceptance remains
-pending. M12 remains partial and this is not a validated production release.
+The owner reported successful Connect 0.1.5-dev → 0.1.5 OTA installation/reboot,
+then a successful one-way upgrade to main WX-Link. Main required its own
+credentials as designed; Connect credentials were not imported. The owner then
+explicitly authorized promoting the same tested assets to a regular
+[0.1.5 release](https://github.com/sideout909/WX-Link-Connect/releases/tag/v0.1.5).
+The GitHub prerelease flag is now false. Application and manifest assets were
+not rebuilt or replaced during promotion; their verified SHA256 remains unchanged.
+
+These are owner-confirmed functional update tests, not a recorded power-loss,
+rollback, storage-retention or multiday stress campaign. Wider RF/station checks
+remain pending and M12 is still partially complete. Source notes below retain
+the earlier candidate evidence and acceptance limits in chronological context.
+No device was flashed during release preparation/publication; the owner performed
+the OTA tests. A later owner-authorized restoration is tracked privately.
 
 ## Local 0.1.5-dev device test — not published
 
